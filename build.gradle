@@ -75,7 +75,7 @@ dependencies {
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.6'
 
     // Encryption
-    implementation 'org.bouncycastle:bcprov-jdk18on:1.78'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.81'
 
     // Monitoring
     implementation 'io.micrometer:micrometer-core:1.12.0'
