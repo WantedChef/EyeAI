@@ -1,76 +1,48 @@
-# Chef-AI
+# EyeAI — Project Overview
 
-A production-grade AI plugin for Paper 1.20+ servers.
+## 1. Ambition
 
-## Features
+> **Create a fully autonomous Minecraft Paper 1.20.6 world**  
+> Every element — **terrain, biomes, structures, rules, quests, emergent events** — is generated, curated, and evolved by AI.  
+> Players drop into an ever-changing simulation powered by a **collective of reinforcement-learned agents (“FakePlayers”)** that craft stories, wage wars, form alliances, fall in love, betray, and reshape the landscape — **all without manual scripting**.
 
-- **Machine Learning Core**: Deep learning models for player behavior prediction
-- **Simulation Engine**: Fake player system for training AI models
-- **Anti-Cheat Integration**: Detect anomalies in player behavior
-- **Chat NLP**: Natural language processing for chat moderation
-- **NPC Villages**: AI-powered village generation and management
-- **Admin Dashboard**: In-game GUI for monitoring and configuration
+---
 
-## Installation
 
-1. Build the plugin using Gradle:
-   ```
-   ./gradlew shadowJar
-   ```
-   
-   Or use the provided build script:
-   ```
-   ./build-plugin.bat
-   ```
 
-2. Copy the generated `ChefAI.jar` to your server's `plugins` folder
+## 3. Additional AI Systems
 
-3. Start/restart your server
+- **World-Scale Event Engine**  
+  AI “dungeon master” triggers continent-wide calamities: plagues, eclipses, invasions, and custom boss raids with ML-driven tactics.
 
-## Dependencies
+- **Fully AI-Trained Agents**  
+  FakePlayers learn via Multi-Agent RL & Policy Gradient. _No human-authored behaviour trees in production._
 
-- Paper 1.20+
-- ProtocolLib
-- packetevents
+- **Next-Gen Anti-Cheat**  
+  Behavioral anomaly detection models flag impossible moves, dupes, or chatbots using an unprecedented gameplay dataset.
 
-## Configuration
+---
 
-The plugin can be configured through `config/chefai.yml`:
+## 4. Technical Pillars
 
-```yaml
-storage:
-  provider: H2 # H2 | POSTGRES
-  h2:
-    file: plugins/ChefAI/data/chefai
-  postgres:
-    host: 127.0.0.1
-    port: 5432
-    database: chefai
-    user: postgres
-    password: secret
+- `MLManager` orchestrates on-server inference, hot-swapping model snapshots.
+- `FakePlayer` implements Bukkit’s `Player` interface so agents act as true in-game citizens.
+- **Mem0Service** provides low-latency REST & bulk-batch access to cloud memory.
+- **LRU caches** keep P95 memory lookups under _2ms_ at peak 500 ops/s.
+- Behavior-mod kernels are compiled with Project Panama & Graal for JNI-free speed.
 
-training:
-  enabled: true
-  fakePlayers: 50
-  batchSize: 128
-  epsilon:
-    start: 0.4
-    min: 0.02
-    adaptive: true
-    decay: 0.995
-  safety:
-    minTPS: 18.0
+---
 
-ui:
-  enableDashboard: true
-```
+## 5. Data Lifecycle
 
-## Commands
+1. **Simulation telemetry** → Mem0 (visualizable in the Playground)
+2. **Offline training jobs** consume Mem0 dumps to improve policies
+3. **Evaluation cluster** benchmarks new models before live rollout
+4. Option for a “life simulator” mode — play as a single NPC with emergent sandbox goals
 
-- `/chefai` - Opens the admin control center
+---
 
-For detailed information about command registration and implementation, see [COMMANDS_DOCUMENTATION.md](COMMANDS_DOCUMENTATION.md)
+## 6. End-Game Vision
 
-## Permissions
-
-- `chefai.admin` - Access to admin features
+> An **endless, self-writing RPG**:  
+> AI authors the narrative and players become participants in a living, breathing experiment of emergence, ethics, chaos, and wonder.
