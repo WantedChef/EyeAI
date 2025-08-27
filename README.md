@@ -8,27 +8,7 @@
 
 ---
 
-## 2. Mem0-Powered Systems
 
-- **Dynamic Questlines**  
-  Mem0 memory graphs track each player's choices; NPC Directors generate personalized, branching missions.
-
-- **Emotion-Driven NPC Dialogue**  
-  Sentiment analysis combined with Mem0 recall enables nuanced, contextual conversations.
-
-- **Cross-World Travel Diary**  
-  Agents maintain Mem0 timelines of visited biomes & monuments; unlock achievements and unique travel quests.
-
-- **Lore Archivist**  
-  An autonomous historian NPC records world events and curates holographic exhibitions, all indexed in Mem0 and viewable through the Playground site.
-
-- **Social Circle Detection**  
-  Graph algorithms over Mem0 data infer friend groups, rival factions, and lone wolves — creating targeted quests for different playstyles.
-
-- **Trust & Reputation System**  
-  Every trade, heal, or ambush updates Mem0 scores, influencing shop prices, guard hostility, and guild invitations.
-
----
 
 ## 3. Additional AI Systems
 
