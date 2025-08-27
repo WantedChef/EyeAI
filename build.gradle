@@ -58,8 +58,8 @@ dependencies {
     implementation 'mysql:mysql-connector-java:8.0.33'
     implementation 'com.zaxxer:HikariCP:5.0.1'
     implementation 'org.springframework:spring-jdbc:6.1.0'
-    implementation 'org.flywaydb:flyway-core:9.22.3'
-    implementation 'org.flywaydb:flyway-mysql:9.22.3'
+    implementation 'org.flywaydb:flyway-core:11.11.2'
+    implementation 'org.flywaydb:flyway-mysql:11.11.2'
 
     // Redis
     implementation 'redis.clients:jedis:5.0.0'
