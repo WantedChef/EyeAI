@@ -1,0 +1,45 @@
+name: ChefAI
+version: 0.1.0
+main: chef.sheesh.eyeAI.bootstrap.ChefAI
+api-version: '1.20'
+description: CHEF-AI - Advanced Minecraft AI Plugin
+author: sheesh
+website: https://example.com
+load: POSTWORLD
+
+dependencies:
+  server:
+    - ProtocolLib
+    - packetevents
+
+commands:
+  chefai:
+    description: Opens the CHEF-AI control center
+    usage: /chefai
+    permission: chefai.admin
+  eyeadmin:
+    description: Opens the CHEF-AI admin panel
+    usage: /eyeadmin
+    permission: chefai.admin
+  eyestats:
+    description: Shows player statistics
+    usage: /eyestats
+    permission: chefai.stats
+  eyescoreboard:
+    description: Toggles the CHEF-AI scoreboard
+    usage: /eyescoreboard
+    permission: chefai.scoreboard
+  ai:
+    description: AI system management commands
+    usage: /ai <subcommand>
+    permission: ai.admin
+
+permissions:
+  chefai.admin:
+    default: op
+  chefai.stats:
+    default: true
+  chefai.scoreboard:
+    default: true
+  ai.admin:
+    default: op

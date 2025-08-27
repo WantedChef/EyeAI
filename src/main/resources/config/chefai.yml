@@ -1,0 +1,46 @@
+storage:
+  provider: H2 # H2 | POSTGRES
+  h2:
+    file: plugins/ChefAI/data/chefai
+  postgres:
+    host: 127.0.0.1
+    port: 5432
+    database: chefai
+    user: postgres
+    password: secret
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  database: 0
+  timeout: 2000
+  maxConnections: 20
+  minIdle: 5
+  maxIdle: 10
+
+cache:
+  enabled: true
+  l1:
+    maxSize: 10000
+    expireMinutes: 30
+  l2:
+    expireMinutes: 60
+  metrics:
+    enabled: true
+
+training:
+  enabled: true
+  autoStart: false  # Of training automatisch moet starten bij plugin enable
+  fakePlayers: 50
+  batchSize: 128
+  epsilon:
+    start: 0.4
+    min: 0.02
+    adaptive: true
+    decay: 0.995
+  safety:
+    minTPS: 18.0
+
+ui:
+  enableDashboard: true

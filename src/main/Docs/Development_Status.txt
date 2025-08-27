@@ -1,0 +1,92 @@
+EyeAI – DEVELOPMENT STATUS REPORT
+=================================
+
+Last updated: 2025-08-27 (CET)
+
+0. Executive Summary
+--------------------
+EyeAI fuses deep-learning agents, emergent narrative, and The Pit minigame ecosystem to create the **first fully-autonomous MMO dungeon arena** on Paper 1.20.6.  Every mob, quest and economy ripple is driven by _RL-trained FakePlayers_ and the **Mem0** long-term memory graph.
+
+The project is **code-complete for Alpha 2**: the server starts, agents fight, players trade, and all GUIs are live.  Focus now shifts to world-scale content generation, Mem0 pipelines, and anti-cheat ML.
+
+1. Architecture Overview
+------------------------
+### 1.1 Runtime Layers
+• **Agent Core** (`FakePlayer`, `BehaviorTree`, `DecisionContext`)
+• **Inference & Training** (`MLManager`, algorithms ↔ Tensor snapshots)
+• **World Glue** (Listeners, Commands, GUIs, Scoreboards)
+• **Persistence** (Mem0 Graph, YAML Configs, File/DB stats)
+
+### 1.2 Key Packages
+| Package | Purpose |
+|---------|---------|
+| `chef.sheesh.eyeAI.ai.fakeplayer` | Entity replacement & behaviour orchestration |
+| `chef.sheesh.eyeAI.core.ml` | Online inference + offline training toolkit |
+| `chef.sheesh.eyeAI.features.*` | High-level gameplay systems (quests, economy) |
+| `admin/gui/*` (The Pit) | Shared GUI/UX stack reused by EyeAI |
+
+2. Feature Matrix
+-----------------
+| System | Status | Notes |
+|--------|--------|-------|
+| FakePlayer combat | ✅ COMPLETE | Pathfinding, ranged/melee, team logic |
+| Behaviour Tree editor | ⚠️  Planned | GUI drag-and-drop (Sprint 35) |
+| Emotion-driven chat | 🟡 Prototype | Hooks in `EmotionListener` + GPT-4o prompt |
+| Dynamic Quests | 🟡 WIP | Mem0 + Director service |
+| Scoreboard 2.0 | ✅ COMPLETE | Cached, sub-5 ms refresh |
+| Anti-Cheat ML | ⚠️  Planned | Telemetry baseline collected |
+| CI 📦 | ✅ | Gradle 8 + Checkstyle + Unit tests |
+
+Legend: ✅ Done  🟡 In-Progress  ⚠️ Planned
+
+3. Recent Achievements (Alpha 2)
+--------------------------------
+• **Build Green** – 0 compiler errors, 0 Checkstyle errors after brace sweep.
+• **Mem0 Stubs** – CRUD API + async ingestion loop validated.
+• **Performance** – 120 bots stable @ 20 TPS on 8-core test node.
+• **GUI Revamp** – Unified Admin/Player/Confirm stacks finished.
+
+4. Current Sprint (34) – 26 Aug → 09 Sep 2025
+----------------------------------------------
+| ID | Task | Owner | ETA |
+|----|------|-------|-----|
+| S34-1 | Mem0Service → persistence layer with GraphQL API | @jorts | 31 Aug |
+| S34-2 | DynamicQuestGenerator PoC | @cascade | 04 Sep |
+| S34-3 | Unit test coverage ≥ 70 % | @QA-team | 09 Sep |
+
+5. Roadmap
+-----------
+### Q3 2025
+1. Ship Alpha 3 (Mem0 quests + Boss raid event)
+2. Open private playtest server
+
+### Q4 2025
+1. Beta release on SpigotMC
+2. Launch Anti-Cheat ML MVP
+3. Paper 1.21 migration prep
+
+6. Known Issues & Tech Debt
+---------------------------
+• **StringListEditorGUI** missing edge-case validation.
+• **World border pathfinding** occasionally picks invalid y-levels.
+• **Mem0 scale-out** – disk usage balloons beyond 5 GB/day during stress.
+• **Deprecated Bukkit APIs** still linger in NPC skin code (needs Adventure).
+
+7. Contribution Guidelines
+--------------------------
+1. Fork & branch off `dev`.
+2. Pre-commit: `gradlew check`.  No Checkstyle errors allowed.
+3. PR template auto-links to issues; include **Gameplay video** if UI/AI change.
+4. Acceptable commit message style: `feat(quest): add branching objectives`.
+
+8. Glossary
+-----------
+| Term | Definition |
+|------|------------|
+| **Mem0** | Graph-based long-term memory of players/NPCs |
+| **FakePlayer** | Server-side agent emulating a real Bukkit `Player` |
+| **DecisionContext** | Immutable snapshot of environment fed to BT/ML |
+| **RL** | Reinforcement Learning |
+
+---
+_“A living world is one where code stops dictating, and AI starts deciding.”_ – Project Manifesto

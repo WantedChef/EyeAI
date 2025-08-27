@@ -1,0 +1,153 @@
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'checkstyle'
+}
+
+// Configure Shadow plugin to work with Java 21
+allprojects {
+    configurations.all {
+        resolutionStrategy {
+            dependencySubstitution {
+                substitute module('org.ow2.asm:asm') using module('org.ow2.asm:asm:9.6')
+                substitute module('org.ow2.asm:asm-commons') using module('org.ow2.asm:asm-commons:9.6')
+                substitute module('org.ow2.asm:asm-tree') using module('org.ow2.asm:asm-tree:9.6')
+                substitute module('org.ow2.asm:asm-analysis') using module('org.ow2.asm:asm-analysis:9.6')
+                substitute module('org.ow2.asm:asm-util') using module('org.ow2.asm:asm-util:9.6')
+            }
+        }
+    }
+}
+
+group   = 'chef.sheesh.eyeAI'
+version = '0.1.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            // Include all Java sources
+        }
+        resources {
+            // include all resources
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://repo.dmulloy2.net/repository/public/' }       // ProtocolLib
+    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots/' } // IF snapshot
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.20-R0.1-SNAPSHOT'
+
+    implementation 'net.kyori:adventure-api:4.17.0'
+    implementation 'com.github.stefvanschie.inventoryframework:IF:0.11.3'
+
+    // Lombok
+    compileOnly    'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    // Database
+    implementation 'mysql:mysql-connector-java:8.0.33'
+    implementation 'com.zaxxer:HikariCP:5.0.1'
+    implementation 'org.springframework:spring-jdbc:6.1.0'
+    implementation 'org.flywaydb:flyway-core:9.22.3'
+    implementation 'org.flywaydb:flyway-mysql:9.22.3'
+
+    // Redis
+    implementation 'redis.clients:jedis:5.0.0'
+    implementation 'org.springframework.data:spring-data-redis:3.2.0'
+    implementation 'org.apache.commons:commons-pool2:2.12.0'
+
+    // JSON
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.0'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    // Caching
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.6'
+
+    // Encryption
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78'
+
+    // Monitoring
+    implementation 'io.micrometer:micrometer-core:1.12.0'
+    implementation 'io.micrometer:micrometer-registry-prometheus:1.12.0'
+
+    // Guava for common utilities
+    implementation 'com.google.guava:guava:33.0.0-jre'
+
+    // Compression
+    implementation 'org.apache.commons:commons-compress:1.26.0'
+
+    // Deep Learning and Reinforcement Learning
+    implementation 'org.deeplearning4j:deeplearning4j-core:1.0.0-M2.1'
+    implementation 'org.nd4j:nd4j-native-platform:1.0.0-M2.1'
+    implementation 'org.deeplearning4j:rl4j-core:1.0.0-beta7'
+    
+    // Optional (uncomment when needed)
+    // implementation 'com.comphenix.protocol:ProtocolLib:5.0.0'
+    // implementation 'com.github.retrooper:packetevents-spigot:2.2.0'
+
+    // Databases for migrations
+    implementation 'com.h2database:h2:2.2.224'
+    implementation 'org.postgresql:postgresql:42.7.3'
+
+    // Test dependencies
+    testImplementation 'io.papermc.paper:paper-api:1.20-R0.1-SNAPSHOT'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
+    testImplementation 'org.mockito:mockito-core:5.8.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.8.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+
+}
+
+// Force modern Guava everywhere and resolve checkstyle conflict
+configurations.all {
+    resolutionStrategy {
+        force 'com.google.guava:guava:33.0.0-jre'
+    }
+    exclude group: 'com.google.collections', module: 'google-collections'
+}
+
+checkstyle {
+    toolVersion = '10.12.7'
+    configFile = file('checkstyle.xml')
+}
+
+test {
+    useJUnitPlatform()
+}
+
+shadowJar {
+    archiveFileName = 'ChefAI.jar'
+
+    // Ensure runtime dependencies (including H2) are included in the final JAR
+    // Shadow defaults to runtimeClasspath, so we don't need to override configurations.
+    // Explicitly keep default behavior to avoid excluding implementation deps.
+    // NOTE: Relocations temporarily disabled due to ASM compatibility with Java 21 (class file 65).
+    // When upgrading Shadow/ASM, re-enable relocations below.
+    // relocate 'com.github.stefvanschie.inventoryframework',  'chef.sheesh.eyeAI.libs.if'
+    // relocate 'com.comphenix.protocol',                      'chef.sheesh.eyeAI.libs.protocol'
+    // relocate 'org.deeplearning4j',                          'chef.sheesh.eyeAI.libs.dl4j'
+    // relocate 'org.nd4j',                                    'chef.sheesh.eyeAI.libs.nd4j'
+    // relocate 'com.zaxxer.hikari',                           'chef.sheesh.eyeAI.libs.hikari'
+    // relocate 'org.springframework',                         'chef.sheesh.eyeAI.libs.spring'
+    // relocate 'org.flywaydb',                                'chef.sheesh.eyeAI.libs.flyway'
+    // relocate 'redis.clients',                               'chef.sheesh.eyeAI.libs.redis'
+    // relocate 'com.github.benmanes.caffeine',                'chef.sheesh.eyeAI.libs.caffeine'
+    // relocate 'com.fasterxml.jackson',                       'chef.sheesh.eyeAI.libs.jackson'
+    // relocate 'org.bouncycastle',                            'chef.sheesh.eyeAI.libs.bouncycastle'
+    // relocate 'io.micrometer',                               'chef.sheesh.eyeAI.libs.micrometer'
+    // relocate 'org.apache.commons.compress',                 'chef.sheesh.eyeAI.libs.compress'
+    // relocate 'org.h2',                                      'chef.sheesh.eyeAI.libs.h2.org.h2'
+}

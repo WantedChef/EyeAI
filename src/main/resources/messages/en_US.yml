@@ -1,0 +1,7 @@
+prefix: "[EyeAI]"
+common:
+  reloaded: "Configuration reloaded."
+  no_permission: "You do not have permission to do that."
+  only_players: "This command can only be used by players."
+admin:
+  open_ui: "Opening EyeAI control center..."
