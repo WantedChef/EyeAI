@@ -8,9 +8,9 @@ import org.bukkit.entity.Player;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
-import java.util.logging.Level;
 
 /**
  * Advanced reward model for reinforcement learning agents.
@@ -40,7 +40,8 @@ public final class RewardModel {
     private final Map<String, Double> playerLastHealth = new HashMap<>();
     private final Map<String, Location> playerLastLocation = new HashMap<>();
     private final Map<String, Long> playerLastActionTime = new HashMap<>();
-    private final Map<String, Integer> exploredChunks = new HashMap<>();
+    // Tracks visited chunk keys per playerId
+    private final Map<String, Set<String>> visitedChunksByPlayer = new HashMap<>();
 
     // Player-specific reward tracking
     private final Map<String, PlayerRewardStats> playerRewardStats = new HashMap<>();
@@ -255,7 +256,7 @@ public final class RewardModel {
             double currentHealth = fakePlayer.getHealth();
             double lastHealth = playerLastHealth.getOrDefault(fakePlayer.getId().toString(), currentHealth);
 
-            // Reward for dealing damage (health decrease indicates successful attack)
+            // Reward for improved health (e.g., healing or avoiding damage)
             if (currentHealth > lastHealth) {
                 reward += damageDealtReward * (currentHealth - lastHealth);
             }
@@ -340,11 +341,11 @@ public final class RewardModel {
         String chunkKey = chunkX + "," + chunkZ;
 
         String playerId = fakePlayer.getId().toString();
-        int exploredCount = exploredChunks.getOrDefault(playerId, 0);
+        // Get or create the visited set for this player
+        Set<String> visited = visitedChunksByPlayer.computeIfAbsent(playerId, k -> new HashSet<>());
 
-        // Reward for exploring new chunks
-        if (!exploredChunks.containsKey(chunkKey + "_" + playerId)) {
-            exploredChunks.put(chunkKey + "_" + playerId, exploredCount + 1);
+        // Reward for exploring a new chunk (first visit only)
+        if (visited.add(chunkKey)) {
             reward += explorationReward;
         }
 
@@ -362,7 +363,7 @@ public final class RewardModel {
         // Small penalty for taking too long (encourage decisive action)
         long timeSinceLastAction = currentTime - lastActionTime;
         if (timeSinceLastAction > 5000) { // More than 5 seconds
-            return -0.01;
+            return 1.0; // positive signal which, when multiplied by negative weight, yields a penalty
         }
 
         return 0.0;
@@ -502,15 +503,16 @@ public final class RewardModel {
         playerLastHealth.clear();
         playerLastLocation.clear();
         playerLastActionTime.clear();
-        exploredChunks.clear();
+        visitedChunksByPlayer.clear();
     }
 
     /**
      * Get reward statistics
      */
     public RewardStats getStatistics() {
+        int totalExplored = visitedChunksByPlayer.values().stream().mapToInt(Set::size).sum();
         return new RewardStats(
-            exploredChunks.size(),
+            totalExplored,
             playerLastHealth.size(),
             combatRewardWeight,
             movementRewardWeight,

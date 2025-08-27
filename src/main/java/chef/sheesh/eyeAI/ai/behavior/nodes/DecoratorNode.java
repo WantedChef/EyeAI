@@ -33,6 +33,13 @@ public abstract class DecoratorNode extends BehaviorTree {
         this.child = child;
     }
 
+    /**
+     * Explicit getter to avoid Lombok processing issues in some environments.
+     */
+    public IBehaviorTree getChild() {
+        return this.child;
+    }
+
     @Override
     public void reset() {
         if (child != null) {

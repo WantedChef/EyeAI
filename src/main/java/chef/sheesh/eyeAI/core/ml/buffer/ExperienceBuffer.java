@@ -130,4 +130,28 @@ public class ExperienceBuffer {
     public int getSize() {
         return priorityTree.getSize();
     }
+
+    /**
+     * Sets the capacity of the buffer (for compatibility - capacity is fixed at construction).
+     * This method is provided for API compatibility but doesn't actually change the capacity.
+     *
+     * @param capacity The new capacity (ignored since capacity is fixed).
+     */
+    public void setCapacity(int capacity) {
+        // Capacity is fixed at construction time, this method is for API compatibility
+        // In a full implementation, you might want to support dynamic capacity changes
+    }
+
+    /**
+     * Clears all experiences from the buffer.
+     */
+    public void clear() {
+        priorityTree.clear();
+        // Clear the experiences array
+        for (int i = 0; i < experiences.length; i++) {
+            experiences[i] = null;
+        }
+        maxPriority = 1.0;
+        beta = BETA_START;
+    }
 }

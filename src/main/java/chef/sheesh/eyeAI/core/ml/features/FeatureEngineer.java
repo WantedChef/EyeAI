@@ -1,6 +1,7 @@
 package chef.sheesh.eyeAI.core.ml.features;
 
 import chef.sheesh.eyeAI.ai.fakeplayer.FakePlayer;
+import chef.sheesh.eyeAI.ai.core.DecisionContext;
 import chef.sheesh.eyeAI.core.sim.SimExperience;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -24,12 +25,20 @@ public final class FeatureEngineer {
      * Extract movement features from a fake player
      */
     public static double[] extractMovementFeatures(FakePlayer fakePlayer) {
+        DecisionContext ctx = fakePlayer.createDecisionContext();
+        return extractMovementFeatures(ctx, fakePlayer);
+    }
+
+    /**
+     * Extract movement features from a DecisionContext
+     */
+    public static double[] extractMovementFeatures(DecisionContext ctx, FakePlayer fakePlayer) {
         double[] features = new double[MOVEMENT_FEATURES];
-        Location location = fakePlayer.getLocation();
+        Location location = ctx.getCurrentLocation();
 
         // Position features (normalized)
         features[0] = location.getX() / 10000.0; // World-relative position
-        features[1] = location.getY() / 256.0;    // Height (0-1)
+        features[1] = location.getY() / 256.0;   // Height (0-1)
         features[2] = location.getZ() / 10000.0; // World-relative position
 
         // Velocity features (derived from recent movement)
@@ -43,10 +52,10 @@ public final class FeatureEngineer {
         features[7] = location.getPitch() / 180.0; // Vertical rotation (-1 to 1, normalized to 0-1)
 
         // Movement capability features
-        features[8] = fakePlayer.isAlive() ? 1.0 : 0.0;           // Can move
-        features[9] = fakePlayer.getHealth() / fakePlayer.getMaxHealth(); // Health ratio
-        features[10] = isOnGround(fakePlayer) ? 1.0 : 0.0;        // Grounded state
-        features[11] = calculateNearbyObstacles(fakePlayer) / 10.0; // Obstacle density
+        features[8] = fakePlayer.isAlive() ? 1.0 : 0.0;                           // Can move
+        features[9] = fakePlayer.getHealth() / fakePlayer.getMaxHealth();         // Health ratio
+        features[10] = ctx.isOnGround() ? 1.0 : 0.0;                              // Grounded state
+        features[11] = ctx.getObstacleDensity() / 10.0;                           // Obstacle density (normalized)
 
         return features;
     }
@@ -55,6 +64,11 @@ public final class FeatureEngineer {
      * Extract combat features
      */
     public static double[] extractCombatFeatures(FakePlayer fakePlayer) {
+        DecisionContext ctx = fakePlayer.createDecisionContext();
+        return extractCombatFeatures(ctx, fakePlayer);
+    }
+
+    public static double[] extractCombatFeatures(DecisionContext ctx, FakePlayer fakePlayer) {
         double[] features = new double[COMBAT_FEATURES];
 
         // Health and damage features
@@ -63,19 +77,31 @@ public final class FeatureEngineer {
         features[2] = calculateDamageTaken(fakePlayer);                   // Recent damage
         features[3] = calculateDamageDealt(fakePlayer);                   // Recent damage dealt
 
-        // Target features
-        Entity[] nearbyEntities = getNearbyEntities(fakePlayer, 20.0);
-        features[4] = nearbyEntities.length / 10.0; // Nearby entity count
+        // Target features using precomputed nearby entities
+        Location playerLoc = ctx.getCurrentLocation();
+        List<Entity> nearby = ctx.getNearbyEntities();
+        long within20 = nearby.stream()
+                .filter(e -> playerLoc.distance(e.getLocation()) <= 20.0)
+                .count();
+        features[4] = within20 / 10.0; // Nearby entity count (normalized)
 
         // Find nearest hostile
-        Entity nearestHostile = findNearestHostile(fakePlayer, nearbyEntities);
-        if (nearestHostile != null) {
-            Location playerLoc = fakePlayer.getLocation();
-            Location hostileLoc = nearestHostile.getLocation();
+        Entity nearestHostile = null;
+        double minDist = Double.MAX_VALUE;
+        for (Entity e : nearby) {
+            double d = playerLoc.distance(e.getLocation());
+            if (d <= 50.0 && isHostile(e)) {
+                if (d < minDist) {
+                    minDist = d;
+                    nearestHostile = e;
+                }
+            }
+        }
 
-            features[5] = playerLoc.distance(hostileLoc) / 50.0; // Distance to nearest hostile
-            features[6] = calculateThreatLevel(nearestHostile);   // Threat assessment
-            features[7] = isInLineOfSight(fakePlayer, nearestHostile) ? 1.0 : 0.0; // Line of sight
+        if (nearestHostile != null) {
+            features[5] = minDist / 50.0;                 // Distance to nearest hostile
+            features[6] = calculateThreatLevel(nearestHostile); // Threat assessment
+            features[7] = isInLineOfSight(fakePlayer, nearestHostile) ? 1.0 : 0.0; // Line of sight (placeholder)
         } else {
             features[5] = 1.0; // No hostile nearby
             features[6] = 0.0; // No threat
@@ -100,25 +126,29 @@ public final class FeatureEngineer {
      * Extract environmental features
      */
     public static double[] extractEnvironmentFeatures(FakePlayer fakePlayer) {
+        DecisionContext ctx = fakePlayer.createDecisionContext();
+        return extractEnvironmentFeatures(ctx);
+    }
+
+    public static double[] extractEnvironmentFeatures(DecisionContext ctx) {
         double[] features = new double[ENVIRONMENT_FEATURES];
-        Location location = fakePlayer.getLocation();
+        long time = ctx.getWorldTime();
 
         // Time features
-        long time = location.getWorld().getTime();
-        features[0] = time / 24000.0; // Day/night cycle (0-1)
+        features[0] = (time % 24000L) / 24000.0; // Day/night cycle (0-1)
         features[1] = isNightTime(time) ? 1.0 : 0.0; // Is night
-        features[2] = calculateLightLevel(location); // Light level (0-1)
+        features[2] = ctx.getLightLevel(); // Light level (0-1)
 
         // Weather features
-        features[3] = location.getWorld().isThundering() ? 1.0 : 0.0; // Thunderstorm
-        features[4] = location.getWorld().hasStorm() ? 1.0 : 0.0;     // Rain/storm
+        features[3] = ctx.isThundering() ? 1.0 : 0.0; // Thunderstorm
+        features[4] = ctx.hasStorm() ? 1.0 : 0.0;     // Rain/storm
 
-        // Terrain features
-        features[5] = calculateTerrainDifficulty(location);     // Terrain navigability
-        features[6] = isNearWater(location) ? 1.0 : 0.0;       // Near water
-        features[7] = isNearLava(location) ? 1.0 : 0.0;        // Near lava (danger)
-        features[8] = calculateElevation(location);            // Height advantage
-        features[9] = calculateCoverDensity(location);         // Available cover
+        // Terrain features (already computed on main thread)
+        features[5] = ctx.getTerrainDifficulty();     // Terrain navigability
+        features[6] = ctx.isNearWater() ? 1.0 : 0.0;  // Near water
+        features[7] = ctx.isNearLava() ? 1.0 : 0.0;   // Near lava (danger)
+        features[8] = ctx.getElevation() / 256.0;     // Height advantage (normalized)
+        features[9] = ctx.getCoverDensity();          // Available cover (precomputed)
 
         return features;
     }
@@ -127,14 +157,32 @@ public final class FeatureEngineer {
      * Extract social features (interaction with other players/entities)
      */
     public static double[] extractSocialFeatures(FakePlayer fakePlayer) {
+        DecisionContext ctx = fakePlayer.createDecisionContext();
+        return extractSocialFeatures(ctx, fakePlayer);
+    }
+
+    public static double[] extractSocialFeatures(DecisionContext ctx, FakePlayer fakePlayer) {
         double[] features = new double[SOCIAL_FEATURES];
 
-        // Player interaction features
-        Player[] nearbyPlayers = getNearbyPlayers(fakePlayer, 50.0);
-        features[0] = nearbyPlayers.length / 10.0; // Nearby player count
+        // Player interaction features via precomputed players
+        Location playerLoc = ctx.getCurrentLocation();
+        List<Player> players = ctx.getNearbyPlayers();
+        long nearCount = players.stream()
+                .filter(p -> playerLoc.distance(p.getLocation()) <= 50.0)
+                .count();
+        features[0] = nearCount / 10.0; // Nearby player count
 
         // Find nearest player
-        Player nearestPlayer = findNearestPlayer(fakePlayer, nearbyPlayers);
+        Player nearestPlayer = null;
+        double minDist = Double.MAX_VALUE;
+        for (Player p : players) {
+            double d = playerLoc.distance(p.getLocation());
+            if (d < minDist) {
+                minDist = d;
+                nearestPlayer = p;
+            }
+        }
+
         if (nearestPlayer != null) {
             features[1] = calculateRelationship(fakePlayer, nearestPlayer); // Relationship score
             features[2] = calculateInteractionHistory(fakePlayer, nearestPlayer); // Past interactions
@@ -149,7 +197,7 @@ public final class FeatureEngineer {
         features[5] = calculateGroupCohesion(fakePlayer);       // Group unity
 
         // Social cues
-        features[6] = calculateNearbyHelpSignals(fakePlayer);  // Help requests
+        features[6] = calculateNearbyHelpSignals(fakePlayer);   // Help requests
         features[7] = calculateNearbyThreatSignals(fakePlayer); // Warning signals
 
         return features;
@@ -159,10 +207,11 @@ public final class FeatureEngineer {
      * Create comprehensive feature vector combining all feature types
      */
     public static double[] createComprehensiveFeatures(FakePlayer fakePlayer) {
-        double[] movement = extractMovementFeatures(fakePlayer);
-        double[] combat = extractCombatFeatures(fakePlayer);
-        double[] environment = extractEnvironmentFeatures(fakePlayer);
-        double[] social = extractSocialFeatures(fakePlayer);
+        DecisionContext ctx = fakePlayer.createDecisionContext();
+        double[] movement = extractMovementFeatures(ctx, fakePlayer);
+        double[] combat = extractCombatFeatures(ctx, fakePlayer);
+        double[] environment = extractEnvironmentFeatures(ctx);
+        double[] social = extractSocialFeatures(ctx, fakePlayer);
 
         // Combine all features
         double[] comprehensive = new double[
@@ -268,25 +317,6 @@ public final class FeatureEngineer {
         return new double[]{0.0, 0.0, 0.0}; // Placeholder
     }
 
-    private static boolean isOnGround(FakePlayer fakePlayer) {
-        Location loc = fakePlayer.getLocation();
-        return loc.getWorld().getBlockAt(loc.clone().subtract(0, 1, 0)).getType().isSolid();
-    }
-
-    private static double calculateNearbyObstacles(FakePlayer fakePlayer) {
-        // Count solid blocks in nearby area
-        Location loc = fakePlayer.getLocation();
-        int obstacles = 0;
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                if (loc.getWorld().getBlockAt(loc.getBlockX() + x, loc.getBlockY(), loc.getBlockZ() + z).getType().isSolid()) {
-                    obstacles++;
-                }
-            }
-        }
-        return obstacles;
-    }
-
     private static double calculateHealthTrend(FakePlayer fakePlayer) {
         // Implementation would track health over time
         return 0.0; // Placeholder
@@ -300,30 +330,6 @@ public final class FeatureEngineer {
     private static double calculateDamageDealt(FakePlayer fakePlayer) {
         // Implementation would track recent damage dealt
         return 0.0; // Placeholder
-    }
-
-    private static Entity[] getNearbyEntities(FakePlayer fakePlayer, double radius) {
-        Location loc = fakePlayer.getLocation();
-        return loc.getWorld().getNearbyEntities(loc, radius, radius, radius)
-            .toArray(new Entity[0]);
-    }
-
-    private static Entity findNearestHostile(FakePlayer fakePlayer, Entity[] entities) {
-        Location playerLoc = fakePlayer.getLocation();
-        Entity nearest = null;
-        double minDistance = Double.MAX_VALUE;
-
-        for (Entity entity : entities) {
-            if (isHostile(entity)) {
-                double distance = playerLoc.distance(entity.getLocation());
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearest = entity;
-                }
-            }
-        }
-
-        return nearest;
     }
 
     private static boolean isHostile(Entity entity) {
@@ -384,83 +390,6 @@ public final class FeatureEngineer {
 
     private static boolean isNightTime(long time) {
         return time > 13000 && time < 23000; // Minecraft time
-    }
-
-    private static double calculateLightLevel(Location location) {
-        return location.getWorld().getBlockAt(location).getLightLevel() / 15.0;
-    }
-
-    private static double calculateTerrainDifficulty(Location location) {
-        // Implementation would analyze terrain for navigation difficulty
-        return 0.5; // Placeholder
-    }
-
-    private static boolean isNearWater(Location location) {
-        // Check nearby blocks for water
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                if (location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY(), location.getBlockZ() + z).getType().toString().contains("WATER")) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean isNearLava(Location location) {
-        // Check nearby blocks for lava
-        for (int x = -2; x <= 2; x++) {
-            for (int z = -2; z <= 2; z++) {
-                if (location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY(), location.getBlockZ() + z).getType().toString().contains("LAVA")) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static double calculateElevation(Location location) {
-        return location.getY() / 256.0; // Normalized elevation
-    }
-
-    private static double calculateCoverDensity(Location location) {
-        // Count nearby solid blocks that could provide cover
-        int coverBlocks = 0;
-        int totalBlocks = 0;
-
-        for (int x = -5; x <= 5; x++) {
-            for (int z = -5; z <= 5; z++) {
-                totalBlocks++;
-                if (location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY(), location.getBlockZ() + z).getType().isSolid()) {
-                    coverBlocks++;
-                }
-            }
-        }
-
-        return (double) coverBlocks / totalBlocks;
-    }
-
-    private static Player[] getNearbyPlayers(FakePlayer fakePlayer, double radius) {
-        Location loc = fakePlayer.getLocation();
-        return loc.getWorld().getPlayers().stream()
-            .filter(p -> !p.getUniqueId().equals(fakePlayer.getId()) && p.getLocation().distance(loc) <= radius)
-            .toArray(Player[]::new);
-    }
-
-    private static Player findNearestPlayer(FakePlayer fakePlayer, Player[] players) {
-        Location playerLoc = fakePlayer.getLocation();
-        Player nearest = null;
-        double minDistance = Double.MAX_VALUE;
-
-        for (Player player : players) {
-            double distance = playerLoc.distance(player.getLocation());
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = player;
-            }
-        }
-
-        return nearest;
     }
 
     private static double calculateRelationship(FakePlayer fakePlayer, Player player) {

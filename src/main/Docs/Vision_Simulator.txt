@@ -10,7 +10,7 @@ collective of reinforcement-learned agents (“FakePlayers”) that craft storie
 wars, broker alliances, fall in love, betray, and reshape the landscape without any
 manual scripting.
 
-2.Soon for!  Mem0-Powered Systems
+2. Mem0-Powered Systems
 -----------------------
 • Dynamic Questlines – Mem0 memory graphs track each player’s past choices; NPC Directors spin personalised, branching missions.
 • Emotion-Driven NPC Dialogue – Sentiment analysis combined with Mem0 recall for long-term context yields nuanced conversations.
@@ -30,7 +30,7 @@ manual scripting.
 • `MLManager` orchestrates on-server inference, hot-swapping model snapshots.
 • `FakePlayer` implements Bukkit’s `Player` interface, letting agents interact as 
   first-class citizens.
-• Mem0Service will  provides low-latency REST & bulk-batch pipes to cloud memory.
+• Mem0 Service — planned: will provide low-latency REST and bulk-batch pipes to cloud memory.
 • LRU caches keep P95 memory lookups <2ms during peak 500 ops/s.
 • Behavior-mod kernels compiled with Project Panama & Graal for JNI-free speed.
 
@@ -39,9 +39,25 @@ manual scripting.
 1. Simulation telemetry → Mem0 (Playground can visualise timelines)
 2. Offline training jobs consume Mem0 dumps to improve policies
 3. Continuous evaluation cluster benchmarks new models before live rollout
-4. can make it like a game that you play as 1 npc character like life simulator game
+4. Single-NPC Life-Sim mode: optionally let a player inhabit one NPC character for a life-simulator experience
 
 6. End-Game Vision
 ------------------
 An endless, self-writing RPG where AI authors the narrative; players become actors
 within a living, breathing experiment of emergence, ethics, chaos and wonder.
+
+7. Implementation Notes (as of 2025-08-27)
+------------------------------------------
+• Present in repo:
+  – MLManager (src/main/java/chef/sheesh/eyeAI/core/ml/MLManager.java)
+  – FakePlayer systems (e.g., ai/fakeplayer/*, core/sim/FakePlayerEngine.java)
+• Missing/planned:
+  – Mem0 Service implementation not yet present; introduce an interface and REST client stubs before wiring advanced features.
+• Immediate next steps (MVP):
+  1) Define a Mem0Service interface + config (endpoints, timeouts, auth) with no-op/local adapter for offline mode.
+  2) Expose MLManager hot-swap hooks and snapshot directory watching; add metrics for swap latency and inference errors.
+  3) Stand up a minimal questline engine backed by a local memory store; later swap to Mem0.
+  4) Add LRU cache utility around memory lookups with P95/P99 gauges.
+• Risks/assumptions:
+  – Offline training pipeline and evaluation cluster are external to the plugin release.
+  – Anti-cheat ML requires sufficient telemetry and labeling; ship detectors in shadow/off mode first.

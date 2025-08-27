@@ -42,7 +42,16 @@ public class PacketNpcController implements IFakePlayerPacketController {
 
     @Override
     public void queueUpdate(FakePlayer fakePlayer) {
-        updateLocation(fakePlayer, fakePlayer.getLocation());
+        // Schedule the update to run on the main thread
+        if (plugin.getServer().isPrimaryThread()) {
+            updateLocation(fakePlayer, fakePlayer.getLocation());
+        } else {
+            // Get the scheduler service from the fake player's manager
+            FakePlayerManager manager = (FakePlayerManager) fakePlayer.getManager();
+            manager.getScheduler().runOnMain(() -> {
+                updateLocation(fakePlayer, fakePlayer.getLocation());
+            });
+        }
     }
 
     @Override
@@ -129,7 +138,10 @@ public class PacketNpcController implements IFakePlayerPacketController {
         ArmorStand armorStand = visualEntities.get(fakePlayer.getId());
         if (armorStand != null && !armorStand.isDead()) {
             if (!armorStand.getLocation().equals(location)) {
-                armorStand.teleport(location);
+                FakePlayerManager manager = (FakePlayerManager) fakePlayer.getManager();
+                manager.getScheduler().runOnMain(() -> {
+                    armorStand.teleport(location);
+                });
             }
         }
     }

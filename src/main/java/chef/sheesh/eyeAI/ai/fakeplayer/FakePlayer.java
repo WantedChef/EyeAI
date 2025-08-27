@@ -8,6 +8,7 @@ import chef.sheesh.eyeAI.ai.core.personality.Personality;
 import chef.sheesh.eyeAI.ai.core.team.Team;
 import chef.sheesh.eyeAI.ai.core.team.TeamRole;
 import chef.sheesh.eyeAI.ai.fakeplayer.ai.*;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -51,6 +52,10 @@ public class FakePlayer implements IFakePlayer {
     private Entity target;
     private Team team;
     private TeamRole role = TeamRole.NONE;
+    
+    // Movement logging counter
+    private static int movementLogCounter = 0;
+    private static final int MOVEMENT_LOG_INTERVAL = 30000; // Only log every 30000 movements (~1 per 30 seconds)
 
     public FakePlayer(UUID id, String name, Location spawn, FakePlayerManager manager) {
         this.id = id;
@@ -65,6 +70,11 @@ public class FakePlayer implements IFakePlayer {
         this.targetSelector = new TargetSelector(this);
         this.combatController = new CombatController(this);
         this.behaviorController = new BehaviorController(this);
+    }
+    
+    @Override
+    public FakePlayerManager getManager() {
+        return manager;
     }
 
     public void tick() {
@@ -96,7 +106,9 @@ public class FakePlayer implements IFakePlayer {
     }
 
     public void moveTo(Location loc) {
-        if (manager.getLogger() != null) {
+        // Only log every MOVEMENT_LOG_INTERVAL movements to reduce console spam
+        movementLogCounter++;
+        if (movementLogCounter % MOVEMENT_LOG_INTERVAL == 0 && manager.getLogger() != null) {
             manager.getLogger().info("FakePlayer " + name + " moving to location: " + loc);
         }
         
@@ -138,69 +150,6 @@ public class FakePlayer implements IFakePlayer {
         }
     }
 
-    private void updateLastActionTime() {
-        lastActionTime = System.currentTimeMillis();
-    }
-
-    public PathFinder getPathfinder() {
-        return pathfinder;
-    }
-
-    public MovementController getMovementController() {
-        return movementController;
-    }
-
-    public TargetSelector getTargetSelector() {
-        return targetSelector;
-    }
-
-    public CombatController getCombatController() {
-        return combatController;
-    }
-
-    public BehaviorController getBehaviorController() {
-        return behaviorController;
-    }
-
-    @Override
-    public UUID getId() {
-        return id;
-    }
-
-    @Override
-    public String getName() {
-        return name;
-    }
-
-    @Override
-    public Location getLocation() {
-        return location.clone();
-    }
-
-    @Override
-    public void setLocation(Location location) {
-        this.location = location;
-    }
-
-    @Override
-    public double getHealth() {
-        return health;
-    }
-
-    @Override
-    public void setHealth(double health) {
-        this.health = Math.max(0, Math.min(20, health));
-        if (this.health <= 0) {
-            setState(FakePlayerState.DEAD);
-        }
-    }
-
-    @Override
-    public FakePlayerState getState() {
-        return state;
-    }
-
-    @Override
     public void setState(FakePlayerState state) {
         this.state = state;
         updateLastActionTime();
@@ -212,7 +161,6 @@ public class FakePlayer implements IFakePlayer {
         updateLastActionTime();
     }
 
-    @Override
     public String getStateName() {
         return state.name();
     }
@@ -227,11 +175,28 @@ public class FakePlayer implements IFakePlayer {
         return this.state != FakePlayerState.DEAD && this.state != FakePlayerState.REMOVED;
     }
 
+    // Explicit accessors to avoid Lombok issues in downstream modules
+    public void setVisibleNpc(Entity entity) {
+        this.visibleNpc = entity;
+    }
+
+    
+
+    /**
+     * Get nearby entities within the specified radius
+     * WARNING: This method must be called from the main thread!
+     */
     @Override
     public List<Entity> getNearbyEntities(double x, double y, double z) {
         if (location == null || location.getWorld() == null) {
             return new ArrayList<>();
         }
+        
+        // Ensure we're on the main thread
+        if (!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("getNearbyEntities must be called from main thread!");
+        }
+        
         return new ArrayList<>(location.getWorld().getNearbyEntities(location, x, y, z));
     }
 
@@ -277,16 +242,8 @@ public class FakePlayer implements IFakePlayer {
         return 20.0;
     }
 
-    public FakePlayerManager getManager() {
-        return manager;
-    }
-
     public Entity getVisibleNpc() {
         return visibleNpc;
-    }
-
-    public void setVisibleNpc(Entity visibleNpc) {
-        this.visibleNpc = visibleNpc;
     }
 
     public long getLastActionTime() {
@@ -295,10 +252,6 @@ public class FakePlayer implements IFakePlayer {
 
     public IBehaviorTree getBehaviorTree() {
         return behaviorTree;
-    }
-
-    public void setBehaviorTree(IBehaviorTree behaviorTree) {
-        this.behaviorTree = behaviorTree;
     }
 
     public void damage(double amount) {
@@ -397,6 +350,41 @@ public class FakePlayer implements IFakePlayer {
     }
 
     @Override
+    public UUID getId() {
+        return id;
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public Location getLocation() {
+        return location;
+    }
+
+    @Override
+    public void setLocation(Location location) {
+        this.location = location;
+    }
+
+    @Override
+    public double getHealth() {
+        return health;
+    }
+
+    @Override
+    public void setHealth(double health) {
+        this.health = health;
+    }
+
+    @Override
+    public FakePlayerState getState() {
+        return state;
+    }
+
+    @Override
     public String toString() {
         return "FakePlayer{"
                 + "id=" + id +
@@ -405,5 +393,29 @@ public class FakePlayer implements IFakePlayer {
                 ", state=" + state +
                 ", location=" + location +
                 '}';
+    }
+
+    public PathFinder getPathfinder() {
+        return pathfinder;
+    }
+
+    public MovementController getMovementController() {
+        return movementController;
+    }
+
+    public BehaviorController getBehaviorController() {
+        return behaviorController;
+    }
+
+    public TargetSelector getTargetSelector() {
+        return targetSelector;
+    }
+
+    public CombatController getCombatController() {
+        return combatController;
+    }
+
+    private void updateLastActionTime() {
+        this.lastActionTime = System.currentTimeMillis();
     }
 }

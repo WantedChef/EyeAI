@@ -6,6 +6,8 @@ import chef.sheesh.eyeAI.infra.config.ConfigurationManager;
 import chef.sheesh.eyeAI.infra.diagnostic.Diagnostic;
 import org.bukkit.Bukkit;
 
+import java.util.Objects;
+
 public final class TrainingScheduler {
     private final MLCore ml;
     private final FakePlayerEngine sim;
@@ -23,7 +25,7 @@ public final class TrainingScheduler {
         }
         long period = 1L; // every tick
         taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
-                Bukkit.getPluginManager().getPlugin("ChefAI"),
+                Objects.requireNonNull(Bukkit.getPluginManager().getPlugin("ChefAI")),
                 () -> {
                     if (Diagnostic.getTps() < cfg.getDouble("training.safety.minTPS", 18.0)) {
                         return;
@@ -47,5 +49,14 @@ public final class TrainingScheduler {
         running = false;
     }
 
-    public boolean isRunning() { return running; }
+    public void pause() {
+        // For now, pause is the same as stop since there's no separate pause state
+        // This can be extended later to implement a true pause/resume functionality
+        stop();
+    }
+
+    // Explicit accessor for other modules that may not see Lombok-generated getter
+    public boolean isRunning() {
+        return running;
+    }
 }

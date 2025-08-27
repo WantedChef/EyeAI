@@ -21,10 +21,25 @@ public class DecisionContext {
     private final boolean isDayTime;
     private final Optional<Entity> currentTarget;
     private final double threatLevel;
+    // Environment/terrain getters
+    // Precomputed environment/terrain flags to avoid Bukkit access off-main
+    private final boolean onGround;
+    private final double obstacleDensity;
+    private final double lightLevel; // 0.0 - 1.0
+    private final boolean thundering;
+    private final boolean storm;
+    private final double terrainDifficulty;
+    private final boolean nearWater;
+    private final boolean nearLava;
+    private final double elevation; // Y coordinate
+    private final double coverDensity;
 
     public DecisionContext(Location currentLocation, double health, List<Entity> nearbyEntities,
                          List<Player> nearbyPlayers, long worldTime, boolean isDayTime,
-                         Optional<Entity> currentTarget, double threatLevel) {
+                         Optional<Entity> currentTarget, double threatLevel,
+                         boolean onGround, double obstacleDensity, double lightLevel,
+                         boolean thundering, boolean storm, double terrainDifficulty,
+                         boolean nearWater, boolean nearLava, double elevation, double coverDensity) {
         this.currentLocation = currentLocation.clone();
         this.health = health;
         this.nearbyEntities = nearbyEntities;
@@ -33,6 +48,16 @@ public class DecisionContext {
         this.isDayTime = isDayTime;
         this.currentTarget = currentTarget;
         this.threatLevel = threatLevel;
+        this.onGround = onGround;
+        this.obstacleDensity = obstacleDensity;
+        this.lightLevel = lightLevel;
+        this.thundering = thundering;
+        this.storm = storm;
+        this.terrainDifficulty = terrainDifficulty;
+        this.nearWater = nearWater;
+        this.nearLava = nearLava;
+        this.elevation = elevation;
+        this.coverDensity = coverDensity;
     }
 
     // Getters
@@ -40,40 +65,12 @@ public class DecisionContext {
         return currentLocation.clone();
     }
 
-    public double getHealth() {
-        return health;
-    }
-
-    public List<Entity> getNearbyEntities() {
-        return nearbyEntities;
-    }
-
-    public List<Player> getNearbyPlayers() {
-        return nearbyPlayers;
-    }
-
-    public long getWorldTime() {
-        return worldTime;
-    }
-
-    public boolean isDayTime() {
-        return isDayTime;
-    }
-
-    public Optional<Entity> getCurrentTarget() {
-        return currentTarget;
-    }
-
-    public double getThreatLevel() {
-        return threatLevel;
-    }
-
     /**
      * Check if there are any hostile entities nearby
      */
     public boolean hasHostileNearby() {
         return nearbyEntities.stream()
-                .anyMatch(entity -> isHostile(entity));
+                .anyMatch(this::isHostile);
     }
 
     /**
@@ -126,5 +123,26 @@ public class DecisionContext {
                entity.getType().name().contains("CREEPER") ||
                entity.getType().name().contains("SPIDER");
     }
+
+    public boolean hasStorm() {
+        return storm;
+    }
+
+    // Explicit getters to avoid Lombok dependency issues in other modules
+    public boolean isOnGround() { return onGround; }
+    public double getObstacleDensity() { return obstacleDensity; }
+    public List<Entity> getNearbyEntities() { return nearbyEntities; }
+    public List<Player> getNearbyPlayers() { return nearbyPlayers; }
+    public long getWorldTime() { return worldTime; }
+    public double getLightLevel() { return lightLevel; }
+    public boolean isThundering() { return thundering; }
+    public double getTerrainDifficulty() { return terrainDifficulty; }
+    public boolean isNearWater() { return nearWater; }
+    public boolean isNearLava() { return nearLava; }
+    public double getElevation() { return elevation; }
+    public double getCoverDensity() { return coverDensity; }
+    public Optional<Entity> getCurrentTarget() { return currentTarget; }
+    public double getHealth() { return health; }
+
 }
 

@@ -71,4 +71,6 @@ public interface IFakePlayer {
     TeamRole getRole();
 
     void setRole(TeamRole role);
+    
+    FakePlayerManager getManager();
 }

@@ -49,6 +49,13 @@ public final class GAOptimizer {
     }
 
     /**
+     * Initialize the GA optimizer
+     */
+    public void initialize() {
+        initializePopulation();
+    }
+
+    /**
      * Run one generation of evolution asynchronously
      */
     public CompletableFuture<GAEvolutionResult> evolveGenerationAsync() {

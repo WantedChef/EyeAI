@@ -6,6 +6,7 @@ import chef.sheesh.eyeAI.ai.core.personality.Personality;
 import chef.sheesh.eyeAI.ai.core.personality.PersonalitySystem;
 import chef.sheesh.eyeAI.ai.core.team.Team;
 import chef.sheesh.eyeAI.ai.core.team.TeamRole;
+import chef.sheesh.eyeAI.ai.fakeplayer.FakePlayerManager;
 import chef.sheesh.eyeAI.ai.fakeplayer.FakePlayerState;
 import chef.sheesh.eyeAI.ai.fakeplayer.IFakePlayer;
 import org.bukkit.Location;
@@ -193,6 +194,12 @@ public class MinimalFakePlayer implements IFakePlayer {
     @Override
     public void setRole(TeamRole role) {
         this.role = role;
+    }
+
+    @Override
+    public FakePlayerManager getManager() {
+        // Minimal implementation - no manager available
+        return null;
     }
 
     @Override

@@ -71,8 +71,15 @@ public class AICommands implements CommandExecutor, TabCompleter {
             case "tp":
                 return handleTeleport(sender, args);
             case "training":
+                return handleTraining(sender);
             case "status":
-                return handleTrainingStatus(sender);
+                return handleStatus(sender);
+            case "start":
+                return handleStartTraining(sender);
+            case "pause":
+                return handlePauseTraining(sender);
+            case "stop":
+                return handleStopTraining(sender);
             default:
                 sender.sendMessage(ChatColor.RED + "Unknown command. Use /ai help for help.");
                 return false;
@@ -80,17 +87,33 @@ public class AICommands implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleSpawn(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
-            return true;
+        Location spawnLocation;
+
+        if (sender instanceof Player player) {
+            spawnLocation = player.getLocation();
+        } else {
+            // For console, use the server's spawn location
+            try {
+                spawnLocation = ChefAI.get().getServer().getWorlds().get(0).getSpawnLocation();
+                if (spawnLocation == null) {
+                    sender.sendMessage(ChatColor.RED + "Server spawn location is not available.");
+                    return true;
+                }
+            } catch (Exception e) {
+                sender.sendMessage(ChatColor.RED + "Failed to get server spawn location: " + e.getMessage());
+                return true;
+            }
         }
 
         String name = args.length >= 2 ? args[1] : "FakePlayer" + (int) (Math.random() * 1000);
-        Location spawnLocation = player.getLocation();
 
-        IFakePlayer fakePlayer = fakePlayerManager.createFakePlayer(spawnLocation, name);
-        sender.sendMessage(ChatColor.GREEN + "Spawned fake player: " + ChatColor.GOLD + fakePlayer.getName());
-        sender.sendMessage(ChatColor.GRAY + "ID: " + fakePlayer.getId());
+        try {
+            IFakePlayer fakePlayer = fakePlayerManager.createFakePlayer(spawnLocation, name);
+            sender.sendMessage(ChatColor.GREEN + "Spawned fake player: " + ChatColor.GOLD + fakePlayer.getName());
+            sender.sendMessage(ChatColor.GRAY + "ID: " + fakePlayer.getId());
+        } catch (Exception e) {
+            sender.sendMessage(ChatColor.RED + "Failed to spawn fake player: " + e.getMessage());
+        }
         return true;
     }
 
@@ -126,6 +149,14 @@ public class AICommands implements CommandExecutor, TabCompleter {
 
     private boolean handleList(CommandSender sender) {
         List<IFakePlayer> activePlayers = new ArrayList<>(fakePlayerManager.getActiveFakePlayers());
+
+        // Also include training fake players managed by the simulation engine
+        if (aiManager != null && aiManager.hasSimEngine()) {
+            chef.sheesh.eyeAI.core.sim.FakePlayerEngine simEngine = aiManager.sim();
+            if (simEngine != null) {
+                activePlayers.addAll(simEngine.getTrainingFakePlayers());
+            }
+        }
 
         if (activePlayers.isEmpty()) {
             sender.sendMessage(ChatColor.YELLOW + "No active fake players.");
@@ -279,6 +310,9 @@ public class AICommands implements CommandExecutor, TabCompleter {
         sender.sendMessage(ChatColor.YELLOW + "/ai tp <id|name>" + ChatColor.GRAY + " - Teleport to fake player");
         sender.sendMessage(ChatColor.YELLOW + "/ai training" + ChatColor.GRAY + " - Show training status");
         sender.sendMessage(ChatColor.YELLOW + "/ai status" + ChatColor.GRAY + " - Show AI system status");
+        sender.sendMessage(ChatColor.YELLOW + "/ai start" + ChatColor.GRAY + " - Start AI training");
+        sender.sendMessage(ChatColor.YELLOW + "/ai pause" + ChatColor.GRAY + " - Pause AI training");
+        sender.sendMessage(ChatColor.YELLOW + "/ai stop" + ChatColor.GRAY + " - Stop AI training");
     }
 
     private boolean handleGui(CommandSender sender) {
@@ -293,31 +327,7 @@ public class AICommands implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!sender.hasPermission("ai.admin")) {
-            return Collections.emptyList();
-        }
-
-        if (args.length == 1) {
-            return Arrays.asList("spawn", "despawn", "list", "info", "save", "load", "clear", "move", "tp", "gui", "stats", "training", "status");
-        }
-
-        if (args.length == 2) {
-            switch (args[0].toLowerCase()) {
-                case "despawn", "info", "tp", "move":
-                    return fakePlayerManager.getActiveFakePlayers().stream()
-                            .map(IFakePlayer::getName)
-                            .collect(Collectors.toList());
-                default:
-                    return Collections.emptyList();
-            }
-        }
-
-        return Collections.emptyList();
-    }
-
-    private boolean handleTrainingStatus(CommandSender sender) {
+    private boolean handleTraining(CommandSender sender) {
         if (aiManager == null) {
             sender.sendMessage(ChatColor.RED + "AI Manager not available");
             return true;
@@ -362,21 +372,120 @@ public class AICommands implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.GRAY + "ML Core: " + ChatColor.RED + "Not Available");
         }
 
+        return true;
+    }
+
+    private boolean handleStatus(CommandSender sender) {
+        if (aiManager == null) {
+            sender.sendMessage(ChatColor.RED + "AI Manager not available");
+            return true;
+        }
+
+        sender.sendMessage(ChatColor.GOLD + "=== AI System Status ===");
+
         // Components status
         sender.sendMessage(ChatColor.GRAY + "Components:");
 
+        boolean hasMLCore = false;
         boolean hasSimEngine = false;
         boolean hasScheduler = false;
         try {
+            hasMLCore = aiManager.hasMLCore();
             hasSimEngine = aiManager.hasSimEngine();
             hasScheduler = aiManager.hasScheduler();
         } catch (Exception e) {
             // Ignore
         }
 
+        sender.sendMessage(ChatColor.GRAY + "  - ML Core: " + (hasMLCore ? ChatColor.GREEN + "✓" : ChatColor.RED + "✗"));
         sender.sendMessage(ChatColor.GRAY + "  - Sim Engine: " + (hasSimEngine ? ChatColor.GREEN + "✓" : ChatColor.RED + "✗"));
         sender.sendMessage(ChatColor.GRAY + "  - Scheduler: " + (hasScheduler ? ChatColor.GREEN + "✓" : ChatColor.RED + "✗"));
 
+        // Active fake players
+        int activeFakePlayers = fakePlayerManager.getActiveFakePlayers().size();
+        sender.sendMessage(ChatColor.GRAY + "Active Fake Players: " + ChatColor.WHITE + activeFakePlayers);
+
+        // Overall system status
+        boolean systemHealthy = hasMLCore && hasSimEngine && hasScheduler;
+        sender.sendMessage(ChatColor.GRAY + "System Health: " + (systemHealthy ? ChatColor.GREEN + "Healthy" : ChatColor.YELLOW + "Degraded"));
+
         return true;
+    }
+
+    private boolean handleStartTraining(CommandSender sender) {
+        if (aiManager == null) {
+            sender.sendMessage(ChatColor.RED + "AI Manager not available");
+            return true;
+        }
+
+        try {
+            aiManager.startTraining();
+            sender.sendMessage(ChatColor.GREEN + "AI training started successfully");
+        } catch (Exception e) {
+            sender.sendMessage(ChatColor.RED + "Failed to start AI training: " + e.getMessage());
+        }
+
+        return true;
+    }
+
+    private boolean handlePauseTraining(CommandSender sender) {
+        if (aiManager == null) {
+            sender.sendMessage(ChatColor.RED + "AI Manager not available");
+            return true;
+        }
+
+        try {
+            // Check if scheduler exists and is running
+            if (aiManager.scheduler() != null && aiManager.scheduler().isRunning()) {
+                aiManager.scheduler().stop(); // Using stop as pause since there's no specific pause method
+                sender.sendMessage(ChatColor.YELLOW + "AI training paused");
+            } else {
+                sender.sendMessage(ChatColor.RED + "AI training is not currently running");
+            }
+        } catch (Exception e) {
+            sender.sendMessage(ChatColor.RED + "Failed to pause AI training: " + e.getMessage());
+        }
+
+        return true;
+    }
+
+    private boolean handleStopTraining(CommandSender sender) {
+        if (aiManager == null) {
+            sender.sendMessage(ChatColor.RED + "AI Manager not available");
+            return true;
+        }
+
+        try {
+            aiManager.stopTraining();
+            sender.sendMessage(ChatColor.GREEN + "AI training stopped successfully");
+        } catch (Exception e) {
+            sender.sendMessage(ChatColor.RED + "Failed to stop AI training: " + e.getMessage());
+        }
+
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!sender.hasPermission("ai.admin")) {
+            return Collections.emptyList();
+        }
+
+        if (args.length == 1) {
+            return Arrays.asList("spawn", "despawn", "list", "info", "save", "load", "clear", "move", "tp", "gui", "stats", "training", "status", "start", "pause", "stop");
+        }
+
+        if (args.length == 2) {
+            switch (args[0].toLowerCase()) {
+                case "despawn", "info", "tp", "move":
+                    return fakePlayerManager.getActiveFakePlayers().stream()
+                            .map(IFakePlayer::getName)
+                            .collect(Collectors.toList());
+                default:
+                    return Collections.emptyList();
+            }
+        }
+
+        return Collections.emptyList();
     }
 }

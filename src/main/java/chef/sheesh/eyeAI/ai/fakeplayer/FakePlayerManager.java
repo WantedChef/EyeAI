@@ -55,13 +55,13 @@ public class FakePlayerManager implements IFakePlayerManager {
     private final JavaPlugin plugin;
     private final SchedulerService scheduler;
     private final Map<UUID, FakePlayer> active = new ConcurrentHashMap<>();
+    // Getters
     private final IFakePlayerPacketController packetController;
     private final FakePlayerAI behaviorTreeFactory;
     private final IFakePlayerPersistence persistence;
     private final Map<UUID, FakePlayerStatistics> statistics = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastSaveTime = new ConcurrentHashMap<>();
     private static final long SAVE_INTERVAL = 300000; // 5 minutes
-    private boolean enabled = true;
     private long lastVisualUpdate = 0;
 
     public FakePlayerManager(JavaPlugin plugin, SchedulerService scheduler) {
@@ -85,6 +85,9 @@ public class FakePlayerManager implements IFakePlayerManager {
         
         // Create behavior tree
         behaviorTreeFactory.createDefaultCombatBehavior(fp);
+        
+        // Format location for logging
+        behaviorTreeFactory.formatLocation(spawn);
         
         // Save initial state
         FakePlayerStatistics stats = new FakePlayerStatistics(id, name);
@@ -121,6 +124,12 @@ public class FakePlayerManager implements IFakePlayerManager {
             // Save final statistics
             FakePlayerStatistics stats = statistics.remove(id);
             if (stats != null) {
+                try {
+                    // Persist latest statistics snapshot
+                    persistence.updateStatistics(id, stats);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to persist statistics for despawned fake player " + fp.getName() + ": " + e.getMessage());
+                }
             }
 
             packetController.removeVisualNpc(fp);
@@ -129,7 +138,6 @@ public class FakePlayerManager implements IFakePlayerManager {
         }
         return false;
     }
-
 
 
     /**
@@ -159,7 +167,6 @@ public class FakePlayerManager implements IFakePlayerManager {
     }
 
 
-
     /**
      * Create a damage event for fake player attacks
      */
@@ -167,10 +174,10 @@ public class FakePlayerManager implements IFakePlayerManager {
         scheduler.runOnMain(() -> {
             Entity damageSource = packetController.getOrCreateProxyEntity(attacker);
 
-            // Use correct constructor with proper DamageCause
-            @SuppressWarnings("deprecation") // Using deprecated constructor for compatibility
+            // Use modern constructor without deprecated parameters
             EntityDamageByEntityEvent event = new EntityDamageByEntityEvent(
-                damageSource, target, EntityDamageEvent.DamageCause.ENTITY_ATTACK, 2.0
+                damageSource, target, EntityDamageEvent.DamageCause.ENTITY_ATTACK,
+                2.0
             );
 
             plugin.getServer().getPluginManager().callEvent(event);
@@ -187,55 +194,156 @@ public class FakePlayerManager implements IFakePlayerManager {
     public DecisionContext createDecisionContext(FakePlayer fakePlayer) {
         Location location = fakePlayer.getLocation();
         
-        // Get nearby entities (within 16 blocks) - must run on main thread
-        List<Entity> nearbyEntities = new ArrayList<>();
+        // Holder for computed values we must gather on the main thread
+        class EnvScan {
+            List<Entity> entitiesOnly = Collections.emptyList();
+            List<Player> nearbyPlayers = Collections.emptyList();
+            long worldTime;
+            boolean isDayTime;
+            boolean onGround;
+            double obstacleDensity;
+            double lightLevel;
+            boolean thundering;
+            boolean storm;
+            double terrainDifficulty;
+            boolean nearWater;
+            boolean nearLava;
+            double elevation;
+            double coverDensity;
+        }
+
+        EnvScan scan = new EnvScan();
+
         try {
-            CompletableFuture<List<Entity>> future = new CompletableFuture<>();
-            
+            CompletableFuture<EnvScan> future = new CompletableFuture<>();
+
             // Schedule on main thread
             Bukkit.getScheduler().runTask(plugin, () -> {
                 try {
-                    List<Entity> entities = location.getWorld().getNearbyEntities(location, 16, 16, 16)
+                    // Nearby entities and players
+                    List<Entity> nearby = location.getWorld().getNearbyEntities(location, 16, 16, 16)
                             .stream()
                             .filter(entity -> !entity.equals(fakePlayer.getVisibleNpc()))
                             .toList();
-                    future.complete(entities);
+
+                    List<Player> players = nearby.stream()
+                            .filter(e -> e instanceof Player)
+                            .map(e -> (Player) e)
+                            .toList();
+
+                    List<Entity> entitiesOnly = nearby.stream()
+                            .filter(e -> !(e instanceof Player))
+                            .toList();
+
+                    // World/time/env
+                    long worldTime = location.getWorld().getTime();
+                    boolean isDayTime = worldTime < 12300 || worldTime > 23850; // simplified
+                    boolean onGround = location.getWorld().getBlockAt(location.clone().subtract(0, 1, 0)).getType().isSolid();
+
+                    int obstacles = 0;
+                    for (int x = -2; x <= 2; x++) {
+                        for (int z = -2; z <= 2; z++) {
+                            if (location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY(), location.getBlockZ() + z)
+                                    .getType().isSolid()) {
+                                obstacles++;
+                            }
+                        }
+                    }
+                    double obstacleDensity = obstacles; // raw count; normalization handled by consumer
+
+                    double lightLevel = location.getWorld().getBlockAt(location).getLightLevel() / 15.0;
+                    boolean thundering = location.getWorld().isThundering();
+                    boolean storm = location.getWorld().hasStorm();
+
+                    // Very simple terrain difficulty heuristic based on surrounding height variance
+                    int baseY = location.getBlockY();
+                    int variance = 0;
+                    for (int x = -1; x <= 1; x++) {
+                        for (int z = -1; z <= 1; z++) {
+                            int y = location.getWorld().getHighestBlockYAt(location.getBlockX() + x, location.getBlockZ() + z);
+                            variance += Math.abs(y - baseY);
+                        }
+                    }
+                    double terrainDifficulty = Math.min(1.0, variance / 20.0);
+
+                    boolean nearWater = false;
+                    boolean nearLava = false;
+                    for (int x = -2; x <= 2; x++) {
+                        for (int z = -2; z <= 2; z++) {
+                            var type = location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY(), location.getBlockZ() + z).getType();
+                            String name = type.name();
+                            if (name.contains("WATER")) {
+                                nearWater = true;
+                            }
+                            if (name.contains("LAVA")) {
+                                nearLava = true;
+                            }
+                        }
+                    }
+
+                    double elevation = location.getY();
+
+                    // Naive cover density: count solid blocks 2 blocks above nearby positions
+                    int cover = 0;
+                    for (int x = -2; x <= 2; x++) {
+                        for (int z = -2; z <= 2; z++) {
+                            if (location.getWorld().getBlockAt(location.getBlockX() + x, location.getBlockY() + 2, location.getBlockZ() + z)
+                                    .getType().isSolid()) {
+                                cover++;
+                            }
+                        }
+                    }
+                    double coverDensity = cover;
+
+                    EnvScan result = new EnvScan();
+                    result.entitiesOnly = entitiesOnly;
+                    result.nearbyPlayers = players;
+                    result.worldTime = worldTime;
+                    result.isDayTime = isDayTime;
+                    result.onGround = onGround;
+                    result.obstacleDensity = obstacleDensity;
+                    result.lightLevel = lightLevel;
+                    result.thundering = thundering;
+                    result.storm = storm;
+                    result.terrainDifficulty = terrainDifficulty;
+                    result.nearWater = nearWater;
+                    result.nearLava = nearLava;
+                    result.elevation = elevation;
+                    result.coverDensity = coverDensity;
+
+                    future.complete(result);
                 } catch (Exception e) {
                     future.completeExceptionally(e);
                 }
             });
-            
-            nearbyEntities = future.get(100, TimeUnit.MILLISECONDS); // Wait max 100ms
+
+            scan = future.get(100, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            getLogger().warning("Failed to find nearby entities for " + fakePlayer.getName() + ": " + e.getMessage());
+            getLogger().warning("Failed to build decision context for " + fakePlayer.getName() + ": " + e.getMessage());
         }
 
-        // Get nearby players
-        List<Player> nearbyPlayers = nearbyEntities.stream()
-                .filter(entity -> entity instanceof Player)
-                .map(entity -> (Player) entity)
-                .toList();
-
-        // Remove players from entities list
-        List<Entity> entitiesOnly = nearbyEntities.stream()
-                .filter(entity -> !(entity instanceof Player))
-                .toList();
-
-        long worldTime = location.getWorld().getTime();
-        boolean isDayTime = worldTime < 12300 || worldTime > 23850; // Simplified day check
-
-        // Calculate threat level based on nearby hostile entities
-        double threatLevel = calculateThreatLevel(fakePlayer, entitiesOnly);
+        // Calculate threat level based on nearby hostile entities (safe: uses values computed on main thread)
+        double threatLevel = calculateThreatLevel(fakePlayer, scan.entitiesOnly);
 
         return new DecisionContext(
             location,
             fakePlayer.getHealth(),
-            entitiesOnly,
-            nearbyPlayers,
-            worldTime,
-            isDayTime,
+            scan.entitiesOnly,
+            scan.nearbyPlayers,
+            scan.worldTime,
+            scan.isDayTime,
             Optional.empty(), // Current target (to be implemented in behavior trees)
-            threatLevel
+            threatLevel,
+            scan.onGround,
+            scan.obstacleDensity,
+            scan.lightLevel,
+            scan.thundering,
+            scan.storm,
+            scan.terrainDifficulty,
+            scan.nearWater,
+            scan.nearLava,
+            scan.elevation,
+            scan.coverDensity
         );
     }
 
@@ -261,17 +369,17 @@ public class FakePlayerManager implements IFakePlayerManager {
                typeName.contains("ENDERMAN");
     }
 
-    // Getters
-    public IFakePlayerPacketController getPacketController() {
-        return packetController;
-    }
-
     public java.util.logging.Logger getLogger() {
         return plugin.getLogger();
     }
 
     public SchedulerService getScheduler() {
         return scheduler;
+    }
+
+    // Explicit accessor to avoid Lombok processing issues
+    public IFakePlayerPacketController getPacketController() {
+        return packetController;
     }
 
     // IFakePlayerManager interface implementation methods
@@ -329,6 +437,7 @@ public class FakePlayerManager implements IFakePlayerManager {
     private void saveAllStatistics() {
         for (Map.Entry<UUID, FakePlayerStatistics> entry : statistics.entrySet()) {
             try {
+                persistence.updateStatistics(entry.getKey(), entry.getValue());
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to save statistics for fake player " + entry.getKey() + ": " + e.getMessage());
             }
@@ -385,26 +494,27 @@ public class FakePlayerManager implements IFakePlayerManager {
 
     @Override
     public void tickAll() {
+        boolean enabled = true;
         if (!enabled) {
             return;
         }
         
         long currentTime = System.currentTimeMillis();
         
-        // Process active fake players
-        Iterator<Map.Entry<UUID, FakePlayer>> iterator = active.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<UUID, FakePlayer> entry = iterator.next();
-            FakePlayer fp = entry.getValue();
-            
+        // Process each fake player
+        for (FakePlayer fp : active.values()) {
             // Skip if not loaded or invalid
             if (fp == null || fp.getLocation() == null || 
                 fp.getLocation().getWorld() == null) {
                 continue;
             }
             
-            // Update AI behavior
+            // Update AI behavior on main thread to avoid async entity access
             try {
+                // Create decision context with proper entity scanning
+                DecisionContext context = createDecisionContext(fp);
+                
+                // Update AI with the context
                 behaviorTreeFactory.updateState(fp);
                 fp.tick();
                 
@@ -417,11 +527,12 @@ public class FakePlayerManager implements IFakePlayerManager {
                 
             } catch (Exception e) {
                 plugin.getLogger().warning("Error ticking fake player " + fp.getName() + ": " + e.getMessage());
+                e.printStackTrace();
             }
         }
         
         // Update NPC visuals periodically
-        if (currentTime - lastVisualUpdate > 1000) { // Update every 1 second
+        if (currentTime - lastVisualUpdate > 1000) {
             updateNpcVisuals();
             lastVisualUpdate = currentTime;
         }
@@ -472,7 +583,7 @@ public class FakePlayerManager implements IFakePlayerManager {
         FakePlayer fakePlayer = active.remove(id);
         if (fakePlayer != null) {
             packetController.removeVisualNpc(fakePlayer);
-            fakePlayer.setState("REMOVED");
+            fakePlayer.setState(FakePlayerState.REMOVED);
             return true;
         }
         return false;

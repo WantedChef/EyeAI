@@ -15,6 +15,8 @@ public class GroupCoordinator {
 
     private final Map<UUID, Group> groups;
     private final Map<UUID, GroupAssignment> assignments;
+    private long lastFormationUpdate = 0;
+    private static final long FORMATION_UPDATE_COOLDOWN = 400; // 400ms = ~8 ticks at 20 TPS
 
     public GroupCoordinator() {
         this.groups = new ConcurrentHashMap<>();
@@ -126,6 +128,12 @@ public class GroupCoordinator {
      * Update group formation
      */
     private void updateFormation(Group group) {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastFormationUpdate < FORMATION_UPDATE_COOLDOWN) {
+            return; // Skip formation update to prevent spam
+        }
+
+        lastFormationUpdate = currentTime;
         Location center = group.getCenter();
         List<Map.Entry<FakePlayer, GroupRole>> members = new ArrayList<>(group.getMembers().entrySet());
 

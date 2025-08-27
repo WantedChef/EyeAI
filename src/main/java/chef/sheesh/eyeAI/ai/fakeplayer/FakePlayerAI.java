@@ -1,202 +1,159 @@
 package chef.sheesh.eyeAI.ai.fakeplayer;
 
+import chef.sheesh.eyeAI.ai.behavior.IBehaviorTree;
 import chef.sheesh.eyeAI.ai.core.DecisionContext;
+import chef.sheesh.eyeAI.ai.fakeplayer.IFakePlayer;
+import chef.sheesh.eyeAI.ai.fakeplayer.FakePlayer;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
-import java.util.List;
 import java.util.Random;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.logging.Logger;
 
 /**
  * AI behavior system for fake players
  */
-public class FakePlayerAI {
+public class FakePlayerAI implements IBehaviorTree {
     
     private final Random random = new Random();
     private static final int LOG_INTERVAL = 100; // Log every 100 ticks (5 seconds)
     private int tickCounter = 0;
     private FakePlayer fakePlayer;
-    
-    /**
-     * Create decision context for a fake player
-     */
-    public DecisionContext createDecisionContext(FakePlayer fakePlayer) {
-        Location loc = fakePlayer.getLocation();
-        List<Entity> nearbyEntities = fakePlayer.getNearbyEntities(20, 10, 20);
-        List<Player> nearbyPlayers = loc.getWorld().getPlayers().stream()
-            .filter(p -> p.getLocation().distance(loc) <= 20)
-            .collect(Collectors.toList());
-            
-        return new DecisionContext(
-            fakePlayer.getLocation(),
-            fakePlayer.getHealth(),
-            nearbyEntities,
-            nearbyPlayers,
-            fakePlayer.getId().getMostSignificantBits(),
-            fakePlayer.isInCombat(),
-            Optional.empty(),
-            0.0
-        );
-    }
-    
+    private boolean running = false;
+    private String name = "FakePlayerAI";
+
     /**
      * Update the fake player's state and behavior
      */
     public void updateState(FakePlayer fakePlayer) {
         this.fakePlayer = fakePlayer;
         tickCounter++;
-        
-        DecisionContext context = createDecisionContext(fakePlayer);
-        
+
+        // Build context via manager on the main thread
+        DecisionContext context = fakePlayer.createDecisionContext();
+
         // Basic AI behavior
         if (shouldMove(context)) {
             moveToRandomLocation(fakePlayer);
         }
-        
+
         if (shouldAttack(context)) {
             attackNearbyEntity(fakePlayer, context);
         }
-        
+
         if (shouldInteract(context)) {
             interactWithNearbyPlayer(fakePlayer, context);
         }
-        
-        updateAI();
-        
+
         // Log AI decisions every 100 ticks (~5 seconds)
         if (tickCounter % LOG_INTERVAL == 0) {
-            // Note: Logging temporarily disabled due to missing getPlugin() method
-            // fakePlayer.getManager().getPlugin().getLogger().info(String.format(
-            //     "[AI] %s: %s - %d entities, %d players nearby",
-            //     fakePlayer.getName(),
-            //     "Decision", // Replace with actual decision name
-            //     context.getNearbyEntities().size(),
-            //     context.getNearbyPlayers().size()
-            // ));
+            Logger.getLogger("Minecraft").info(String.format(
+                "[EyeAI][AI] %s: %d entities, %d players nearby",
+                fakePlayer.getName(),
+                context.getNearbyEntities().size(),
+                context.getNearbyPlayers().size()
+            ));
         }
     }
-    
+
     /**
-     * Create default combat behavior tree
+     * Create default combat behavior for a fake player
      */
     public void createDefaultCombatBehavior(FakePlayer fakePlayer) {
-        // For now, just set basic combat AI flags
-        fakePlayer.setCombatMode(true);
+        // Enable combat mode in the behavior controller
+        fakePlayer.getBehaviorController().setCombatMode(true);
+        
+        // Set patrol mode as well so the player has something to do when not in combat
+        fakePlayer.getBehaviorController().setPatrolMode(true);
     }
-    
-    /**
-     * Create decision tree for movement
-     */
-    public void createMovementTree(FakePlayer fakePlayer) {
-        // Basic movement AI
-        fakePlayer.setMovementMode(true);
-    }
-    
-    /**
-     * Create decision tree for interaction
-     */
-    public void createInteractionTree(FakePlayer fakePlayer) {
-        // Basic interaction AI
-        fakePlayer.setInteractionMode(true);
-    }
-    
+
     private boolean shouldMove(DecisionContext context) {
         return random.nextDouble() < 0.3; // 30% chance to move
     }
-    
+
     private boolean shouldAttack(DecisionContext context) {
-        return !context.getNearbyEntities().isEmpty() && 
+        return !context.getNearbyEntities().isEmpty() &&
                random.nextDouble() < 0.2; // 20% chance to attack
     }
-    
+
     private boolean shouldInteract(DecisionContext context) {
-        return !context.getNearbyPlayers().isEmpty() && 
+        return !context.getNearbyPlayers().isEmpty() &&
                random.nextDouble() < 0.1; // 10% chance to interact
     }
-    
+
     private void moveToRandomLocation(FakePlayer fakePlayer) {
         Location current = fakePlayer.getLocation();
         double offsetX = (random.nextDouble() - 0.5) * 10;
         double offsetZ = (random.nextDouble() - 0.5) * 10;
-        
+
         Location newLoc = current.clone().add(offsetX, 0, offsetZ);
         newLoc.setY(current.getWorld().getHighestBlockYAt(newLoc) + 1);
-        
-        fakePlayer.setLocation(newLoc);
+
+        fakePlayer.moveTo(newLoc);
     }
-    
+
     private void attackNearbyEntity(FakePlayer fakePlayer, DecisionContext context) {
         if (!context.getNearbyEntities().isEmpty()) {
             Entity target = context.getNearbyEntities().get(0);
-            // Note: attack() method expects Player, not Entity
-            // Use alternative approach or cast if needed
-            // fakePlayer.attack(target);
+            fakePlayer.attackEntity(target);
         }
     }
-    
+
     private void interactWithNearbyPlayer(FakePlayer fakePlayer, DecisionContext context) {
         if (!context.getNearbyPlayers().isEmpty()) {
             Player target = context.getNearbyPlayers().get(0);
             fakePlayer.interact(target);
         }
     }
-    
-    private String formatLocation(Location loc) {
+
+    public String formatLocation(Location loc) {
         return String.format("%.1f, %.1f, %.1f", loc.getX(), loc.getY(), loc.getZ());
     }
     
-    private void updateAI() {
-        List<Entity> nearbyEntities = fakePlayer.getNearbyEntities(10, 2, 10);
-        List<Player> nearbyPlayers = fakePlayer.getLocation().getWorld().getPlayers().stream()
-            .filter(p -> p.getLocation().distance(fakePlayer.getLocation()) < 10)
-            .collect(Collectors.toList());
-
-        // Make AI decisions
-        AIDecision decision = makeAIDecision(nearbyEntities, nearbyPlayers);
-        
-        DecisionContext context = new DecisionContext(
-            fakePlayer.getLocation(),
-            fakePlayer.getHealth(),
-            nearbyEntities,
-            nearbyPlayers,
-            fakePlayer.getId().getMostSignificantBits(),
-            "COMBAT".equals(fakePlayer.getState()),
-            Optional.empty(),
-            0.0
-        );
-        
-        // Log AI decisions every 100 ticks (~5 seconds)
-        if (tickCounter % 100 == 0) {
-            // Note: Logging temporarily disabled due to missing getPlugin() method
-            // fakePlayer.getManager().getPlugin().getLogger().info(String.format(
-            //     "[AI] %s: %s - %d entities, %d players nearby",
-            //     fakePlayer.getName(),
-            //     decision.name(),
-            //     nearbyEntities.size(),
-            //     nearbyPlayers.size()
-            // ));
+    @Override
+    public ExecutionResult execute(IFakePlayer fakePlayer) {
+        if (!(fakePlayer instanceof FakePlayer)) {
+            return ExecutionResult.FAILURE;
         }
         
-        // Execute the decision
-        executeAIDecision(decision, nearbyEntities, nearbyPlayers);
+        FakePlayer player = (FakePlayer) fakePlayer;
+        this.fakePlayer = player;
+        running = true;
+        
+        // Build context via manager on the main thread
+        DecisionContext context = player.createDecisionContext();
+        
+        // Update behavior based on context
+        updateState(player);
+        
+        running = false;
+        return ExecutionResult.SUCCESS;
     }
     
-    private AIDecision makeAIDecision(List<Entity> nearbyEntities, List<Player> nearbyPlayers) {
-        // TO DO: implement AI decision making logic
-        return AIDecision.IDLE;
+    @Override
+    public void reset() {
+        tickCounter = 0;
+        running = false;
     }
     
-    private void executeAIDecision(AIDecision decision, List<Entity> nearbyEntities, List<Player> nearbyPlayers) {
-        // TO DO: implement AI decision execution logic
+    @Override
+    public String getName() {
+        return name;
     }
     
-    private enum AIDecision {
-        IDLE,
-        ATTACK,
-        INTERACT,
-        MOVE
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public String getDescription() {
+        return "Default AI behavior system for fake players with combat, movement, and interaction capabilities";
     }
 }

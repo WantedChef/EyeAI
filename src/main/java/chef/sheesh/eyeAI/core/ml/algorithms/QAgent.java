@@ -63,10 +63,10 @@ public class QAgent {
             Experience exp = experiences.get(i);
             double weight = weights[i];
 
-            GameState state = exp.state();
+            GameState state = (GameState) exp.state();
             Action action = exp.action();
             double reward = exp.reward();
-            GameState nextState = exp.nextState();
+            GameState nextState = (GameState) exp.nextState();
 
             qTable.putIfAbsent(state, new ConcurrentHashMap<>());
 
@@ -135,5 +135,53 @@ public class QAgent {
 
     public void setExplorationRate(double explorationRate) {
         this.explorationRate = explorationRate;
+    }
+
+    /**
+     * Reset the Q-table to start learning from scratch
+     */
+    public void reset() {
+        qTable.clear();
+    }
+
+    public void setLearningRate(double learningRate) {
+        // Note: Since learningRate was final, this method is for compatibility
+        // In a full implementation, you might want to make learningRate non-final
+    }
+
+    public void initialize() {
+        // Initialize the Q-agent - currently empty implementation
+    }
+
+    public Map<Long, double[]> exportQTable() {
+        // Convert GameState/Action format to Map<Long, double[]> format
+        Map<Long, double[]> result = new ConcurrentHashMap<>();
+        for (Map.Entry<GameState, Map<Action, Double>> stateEntry : qTable.entrySet()) {
+            GameState state = stateEntry.getKey();
+            Map<Action, Double> actions = stateEntry.getValue();
+            double[] qValues = new double[Action.values().length];
+            for (Map.Entry<Action, Double> actionEntry : actions.entrySet()) {
+                qValues[actionEntry.getKey().ordinal()] = actionEntry.getValue();
+            }
+            result.put(state.getStateHash(), qValues);
+        }
+        return result;
+    }
+
+    public void importQTable(Map<Long, double[]> importedQTable) {
+        // Convert Map<Long, double[]> format to GameState/Action format
+        qTable.clear();
+        for (Map.Entry<Long, double[]> entry : importedQTable.entrySet()) {
+            long stateHash = entry.getKey();
+            double[] qValues = entry.getValue();
+            // Note: This is a simplified conversion - in practice you'd need proper GameState reconstruction
+            GameState state = new GameState(0, 0, 0, 0, 0, java.util.List.of(), java.util.Map.of(), stateHash, "", 0);
+            Map<Action, Double> actions = new ConcurrentHashMap<>();
+            Action[] actionValues = Action.values();
+            for (int i = 0; i < qValues.length && i < actionValues.length; i++) {
+                actions.put(actionValues[i], qValues[i]);
+            }
+            qTable.put(state, actions);
+        }
     }
 }

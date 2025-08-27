@@ -57,7 +57,7 @@ public class TacticEngine {
      */
     public Entity selectCrowdControlTarget(IFakePlayer agent, List<Entity> targets) {
         // Placeholder: just return the first target.
-        return targets.isEmpty() ? null : targets.get(0);
+        return targets.isEmpty() ? null : targets.getFirst();
     }
 
     /**

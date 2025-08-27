@@ -39,7 +39,7 @@ public class RedisConfig {
         poolConfig.setMaxTotal(config.getInt(ConfigKeys.REDIS_MAX_CONNECTIONS, 20));
         poolConfig.setMaxIdle(config.getInt(ConfigKeys.REDIS_MIN_IDLE, 5));
         poolConfig.setMinIdle(config.getInt(ConfigKeys.REDIS_MIN_IDLE, 5));
-        poolConfig.setMaxWait(Duration.ofMillis(timeout));
+        poolConfig.setMaxWaitMillis(timeout);
         poolConfig.setTestOnBorrow(true);
         poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);

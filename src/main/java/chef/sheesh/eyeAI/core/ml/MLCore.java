@@ -29,7 +29,7 @@ public final class MLCore {
     public MLCore(EventBus bus, ConfigurationManager cfg, JavaPlugin plugin) {
         this.bus = bus;
         this.cfg = cfg;
-        this.mlManager = new MLManager(bus, cfg);
+        this.mlManager = new MLManager(bus, cfg, plugin);
         this.persistenceManager = new MLModelPersistenceManager(plugin.getDataFolder(), bus);
     }
 
@@ -38,7 +38,10 @@ public final class MLCore {
      */
     public void init() {
         mlManager.initializeMLComponents();
-
+        
+        // Apply max performance config for GTX 1060 + 8GB RAM setup
+        mlManager.applyMaxPerformanceConfig();
+        
         // Try to load existing models
         loadExistingModels();
 

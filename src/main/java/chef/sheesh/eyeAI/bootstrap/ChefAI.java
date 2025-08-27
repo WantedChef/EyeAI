@@ -115,59 +115,14 @@ public final class ChefAI extends JavaPlugin {
      * Register commands defined in plugin.yml with proper error handling
      */
     private void registerCommandsFromYml() {
-        // Register chefai command
-        if (getCommand("chefai") != null) {
-            getCommand("chefai").setExecutor((sender, cmd, label, args) -> {
-                if (!(sender instanceof org.bukkit.entity.Player p)) {
-                    sender.sendMessage("This command can only be used by players!");
-                    return true;
-                }
-                new AdminGui(this).open(p);
-                return true;
-            });
-            getLogger().info("Successfully registered chefai command");
-        } else {
-            getLogger().warning("Failed to register chefai command - command not found in plugin.yml");
-        }
+        // Register chefai command - already handled by CommandManager
+        // Keeping this for now as it uses AdminGui instead of EyeAICommand
 
-        // Register eyeadmin command
-        if (getCommand("eyeadmin") != null) {
-            getCommand("eyeadmin").setExecutor((sender, cmd, label, args) -> {
-                if (!(sender instanceof org.bukkit.entity.Player p)) {
-                    sender.sendMessage("This command can only be used by players!");
-                    return true;
-                }
-                new AdminGui(this).open(p);
-                return true;
-            });
-            getLogger().info("Successfully registered eyeadmin command");
-        } else {
-            getLogger().warning("Failed to register eyeadmin command - command not found in plugin.yml");
-        }
+        // Register eyeadmin command - already handled by CommandManager
+        // Keeping this for now as it uses AdminGui instead of EyeAdminCommand
 
-        // Register eyestats command
-        if (getCommand("eyestats") != null) {
-            getCommand("eyestats").setExecutor((sender, cmd, label, args) -> {
-                // TODO: Implement stats command
-                sender.sendMessage("Stats command not yet implemented");
-                return true;
-            });
-            getLogger().info("Successfully registered eyestats command");
-        } else {
-            getLogger().warning("Failed to register eyestats command - command not found in plugin.yml");
-        }
-
-        // Register eyescoreboard command
-        if (getCommand("eyescoreboard") != null) {
-            getCommand("eyescoreboard").setExecutor((sender, cmd, label, args) -> {
-                // TODO: Implement scoreboard toggle command
-                sender.sendMessage("Scoreboard command not yet implemented");
-                return true;
-            });
-            getLogger().info("Successfully registered eyescoreboard command");
-        } else {
-            getLogger().warning("Failed to register eyescoreboard command - command not found in plugin.yml");
-        }
+        // eyestats and eyescoreboard commands are properly handled by CommandManager
+        // No need for redundant registration here
 
         // Register ai command
         if (getCommand("ai") != null) {

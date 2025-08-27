@@ -22,12 +22,10 @@ import java.util.stream.Collectors;
  * Command system for managing fake players
  */
 public class FakePlayerCommand implements CommandExecutor {
-    
-    private final ChefAI plugin;
+
     private final FakePlayerManager fakePlayerManager;
     
     public FakePlayerCommand(ChefAI plugin, FakePlayerManager fakePlayerManager) {
-        this.plugin = plugin;
         this.fakePlayerManager = fakePlayerManager;
     }
     

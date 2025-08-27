@@ -122,4 +122,13 @@ public class SumTree {
     public int getCapacity() {
         return capacity;
     }
+
+    /**
+     * Clears the tree by resetting all values to 0 and resetting indices.
+     */
+    public void clear() {
+        Arrays.fill(tree, 0.0);
+        size = 0;
+        writeIndex = 0;
+    }
 }

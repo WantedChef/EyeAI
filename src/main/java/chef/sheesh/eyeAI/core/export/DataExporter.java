@@ -40,12 +40,12 @@ public class DataExporter {
 
             // Write data
             for (Experience exp : experiences) {
-                GameState state = exp.state();
-                GameState nextState = exp.nextState();
+                GameState state = (GameState) exp.state();
+                GameState nextState = (GameState) exp.nextState();
 
-                writer.append(String.format("%f,%f,%f,%f,%d,", state.getX(), state.getY(), state.getZ(), state.getHealth(), state.getHunger()));
+                writer.append(String.format("%f,%f,%f,%f,%d,", state.x(), state.y(), state.z(), state.health(), state.hunger()));
                 writer.append(String.format("%s,%f,", exp.action().name(), exp.reward()));
-                writer.append(String.format("%f,%f,%f,%f,%d\n", nextState.getX(), nextState.getY(), nextState.getZ(), nextState.getHealth(), nextState.getHunger()));
+                writer.append(String.format("%f,%f,%f,%f,%d\n", nextState.x(), nextState.y(), nextState.z(), nextState.health(), nextState.hunger()));
             }
 
             LOGGER.info("Successfully exported " + experiences.size() + " experiences to " + file.getAbsolutePath());

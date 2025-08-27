@@ -14,7 +14,13 @@ import java.util.*;
 public class NavGraph {
 
     private final World world;
-    private final int maxPathLength = 1000; // Maximum nodes to explore
+    // Small LRU cache for walkability checks to reduce block lookups
+    private final Map<Long, Boolean> walkableCache = new LinkedHashMap<Long, Boolean>(4096, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, Boolean> eldest) {
+            return size() > 4096;
+        }
+    };
 
     public NavGraph(World world) {
         this.world = world;
@@ -31,6 +37,14 @@ public class NavGraph {
         // Convert locations to nodes
         Node startNode = new Node(start.getBlockX(), start.getBlockY(), start.getBlockZ());
         Node endNode = new Node(end.getBlockX(), end.getBlockY(), end.getBlockZ());
+
+        // Quick straight-line check (cheap visibility/pathability test)
+        if (isStraightLineWalkable(startNode, endNode)) {
+            List<Location> direct = new ArrayList<>();
+            direct.add(new Location(world, startNode.getX() + 0.5, startNode.getY(), startNode.getZ() + 0.5));
+            direct.add(new Location(world, endNode.getX() + 0.5, endNode.getY(), endNode.getZ() + 0.5));
+            return new Path(direct);
+        }
 
         // A* algorithm
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(Node::getFCost));
@@ -69,6 +83,8 @@ public class NavGraph {
             }
 
             // Prevent infinite loops
+            // Maximum nodes to explore
+            int maxPathLength = 1000;
             if (closedSet.size() > maxPathLength) {
                 break;
             }
@@ -84,29 +100,30 @@ public class NavGraph {
     private List<Node> getNeighbors(Node node) {
         List<Node> neighbors = new ArrayList<>();
 
-        // Check all 8 directions (including diagonals)
+        // Check all 8 horizontal directions (including diagonals)
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 if (dx == 0 && dz == 0) {
                     continue; // Skip center
                 }
 
-                int newX = node.getX() + dx;
-                int newZ = node.getZ() + dz;
+                int nx = node.getX() + dx;
+                int ny = node.getY();
+                int nz = node.getZ() + dz;
 
-                // Check if we can walk there
-                if (isWalkable(newX, node.getY(), newZ)) {
-                    neighbors.add(new Node(newX, node.getY(), newZ));
+                // Same-level move
+                if (isWalkable(nx, ny, nz)) {
+                    neighbors.add(new Node(nx, ny, nz));
                 } else {
-                    // Try jumping up
-                    if (isWalkable(newX, node.getY() + 1, newZ)) {
-                        neighbors.add(new Node(newX, node.getY() + 1, newZ));
+                    // Try step up by 1
+                    if (isWalkable(nx, ny + 1, nz)) {
+                        neighbors.add(new Node(nx, ny + 1, nz));
                     }
                 }
             }
         }
 
-        // Check if we can move down
+        // Check stepping down by 1 if the block below is walkable platform
         if (isWalkable(node.getX(), node.getY() - 1, node.getZ())) {
             neighbors.add(new Node(node.getX(), node.getY() - 1, node.getZ()));
         }
@@ -118,27 +135,38 @@ public class NavGraph {
      * Check if a position is walkable
      */
     private boolean isWalkable(int x, int y, int z) {
+        long key = (((long) x & 0x3FFFFFF) << 38) | (((long) z & 0x3FFFFFF) << 12) | (y & 0xFFFL);
+        Boolean cached = walkableCache.get(key);
+        if (cached != null) { return cached; }
+
         Block block = world.getBlockAt(x, y, z);
         Block above = world.getBlockAt(x, y + 1, z);
         Block below = world.getBlockAt(x, y - 1, z);
 
+        boolean walkable = true;
+
         // Check if the block itself is solid (can't walk through it)
         if (block.getType().isSolid()) {
-            return false;
+            walkable = false;
         }
 
         // Check if there's a solid block above (can't fit)
-        if (above.getType().isSolid()) {
-            return false;
+        if (walkable && above.getType().isSolid()) {
+            walkable = false;
         }
 
         // Check if there's nothing below (would fall)
-        if (!below.getType().isSolid() && y > world.getMinHeight()) {
-            return false;
+        if (walkable && !below.getType().isSolid() && y > world.getMinHeight()) {
+            walkable = false;
         }
 
         // Avoid dangerous blocks
-        return !isDangerous(block.getType());
+        if (walkable && isDangerous(block.getType())) {
+            walkable = false;
+        }
+
+        walkableCache.put(key, walkable);
+        return walkable;
     }
 
     /**
@@ -151,10 +179,14 @@ public class NavGraph {
     }
 
     /**
-     * Calculate heuristic distance (Manhattan distance)
+     * Calculate heuristic distance using weighted 3D Manhattan distance
      */
     private double calculateHeuristic(Node a, Node b) {
-        return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
+        int dx = Math.abs(a.getX() - b.getX());
+        int dz = Math.abs(a.getZ() - b.getZ());
+        int dy = Math.abs(a.getY() - b.getY());
+        // Vertical movement generally costs more
+        return dx + dz + (dy * 1.5);
     }
 
     /**
@@ -162,8 +194,11 @@ public class NavGraph {
      */
     private double calculateDistance(Node a, Node b) {
         int dx = Math.abs(a.getX() - b.getX());
+        int dy = Math.abs(a.getY() - b.getY());
         int dz = Math.abs(a.getZ() - b.getZ());
-        return Math.sqrt(dx * dx + dz * dz);
+        // Diagonals and vertical steps are slightly more expensive
+        double base = Math.sqrt(dx * dx + dz * dz);
+        return base + (dy * 1.2);
     }
 
     /**
@@ -182,6 +217,51 @@ public class NavGraph {
         Collections.reverse(path); // Reverse to get correct order
 
         return new Path(path);
+    }
+
+    /**
+     * Public walkability check for a Bukkit Location
+     */
+    public boolean isWalkable(Location location) {
+        return isWalkable(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
+
+    /**
+     * Cheap straight-line check by stepping towards target and verifying walkability
+     */
+    private boolean isStraightLineWalkable(Node start, Node end) {
+        int x0 = start.getX();
+        int y0 = start.getY();
+        int z0 = start.getZ();
+        int x1 = end.getX();
+        int y1 = end.getY();
+        int z1 = end.getZ();
+
+        int dx = Math.abs(x1 - x0);
+        int dy = Math.abs(y1 - y0);
+        int dz = Math.abs(z1 - z0);
+
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
+        int sz = z0 < z1 ? 1 : -1;
+
+        int err1 = dx - dz;
+        int err2;
+
+        int x = x0, y = y0, z = z0;
+        int steps = 0;
+        int maxSteps = Math.max(dx + dz + dy, 1);
+        while (true) {
+            if (!isWalkable(x, y, z)) { return false; }
+            if (x == x1 && y == y1 && z == z1) { return true; }
+            if (steps++ > maxSteps) { return false; }
+
+            int e2 = 2 * err1;
+            if (e2 > -dz) { err1 -= dz; x += sx; }
+            if (e2 < dx)  { err1 += dx; z += sz; }
+            // Adjust Y gradually towards target
+            if (y != y1) { y += sy; }
+        }
     }
 
     /**

@@ -5,6 +5,8 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -90,8 +92,11 @@ public class PlayerDataHandler implements AutoCloseable {
                 }
 
                 // Use H2 for simplicity (can be changed to PostgreSQL)
-                String dbPath = dataFolder.getAbsolutePath() + "/playerdata";
-                String url = "jdbc:h2:" + dbPath + ";AUTO_SERVER=TRUE";
+                // Build a normalized absolute path with forward slashes for H2 on Windows
+                Path dbFilePath = Paths.get(dataFolder.getAbsolutePath(), "playerdata").toAbsolutePath();
+                String normalizedPath = dbFilePath.toString().replace('\\', '/');
+                // H2 v2 recommends explicit file: prefix
+                String url = "jdbc:h2:file:" + normalizedPath + ";AUTO_SERVER=TRUE";
 
                 this.connection = DriverManager.getConnection(url);
                 createTables();

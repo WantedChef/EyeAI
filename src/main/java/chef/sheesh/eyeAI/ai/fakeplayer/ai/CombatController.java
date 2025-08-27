@@ -94,8 +94,39 @@ public class CombatController {
      * Face the target
      */
     private void faceTarget(Entity target) {
-        // TODO: Implement yaw/pitch calculation to face target
-        // This would require updating FakePlayer location with yaw/pitch
+        if (target == null) {
+            return;
+        }
+
+        Location playerLoc = fakePlayer.getLocation();
+        Location targetLoc = target.getLocation();
+
+        // Calculate the direction vector from player to target
+        double dx = targetLoc.getX() - playerLoc.getX();
+        double dy = targetLoc.getY() - playerLoc.getY();
+        double dz = targetLoc.getZ() - playerLoc.getZ();
+
+        // Calculate yaw (horizontal rotation)
+        double yaw = Math.toDegrees(Math.atan2(-dx, dz));
+
+        // Calculate pitch (vertical rotation)
+        double distance = Math.sqrt(dx * dx + dz * dz);
+        double pitch = Math.toDegrees(-Math.atan2(dy, distance));
+
+        // Normalize yaw to be between -180 and 180
+        while (yaw > 180) {
+            yaw -= 360;
+        }
+        while (yaw < -180) {
+            yaw += 360;
+        }
+
+        // Set the new rotation on the fake player
+        Location newLocation = playerLoc.clone();
+        newLocation.setYaw((float) yaw);
+        newLocation.setPitch((float) pitch);
+
+        fakePlayer.setLocation(newLocation);
     }
 
     /**

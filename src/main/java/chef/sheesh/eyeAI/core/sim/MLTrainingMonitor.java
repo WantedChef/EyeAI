@@ -105,7 +105,7 @@ public final class MLTrainingMonitor {
         }
 
         // Periodic performance reports
-        if (totalTicks.get() % 100 == 0) { // Every 100 ticks
+        if (totalTicks.get() % 1000 == 0) { // Every 1000 ticks
             generatePeriodicReport();
         }
     }

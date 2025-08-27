@@ -94,6 +94,13 @@ public final class FakePlayerEngine {
     public int getCount() { return fakePlayers.size(); }
 
     /**
+     * Expose current training fake players for status/commands.
+     */
+    public java.util.List<FakePlayer> getTrainingFakePlayers() {
+        return new java.util.ArrayList<>(fakePlayers.values());
+    }
+
+    /**
      * Check if training is currently active
      */
     public boolean isTrainingActive() {
@@ -110,30 +117,38 @@ public final class FakePlayerEngine {
         // Generate a dynamic target location for training purposes
         Location target = generateTrainingTarget(fp, from);
 
-        // Calculate state and action for Q-learning
-        long stateHash = calculateStateHash(fp, from);
-        int action = ml.selectAction(stateHash, 10); // 10 possible actions
+        try {
+            // Calculate state and action for Q-learning
+            long stateHash = calculateStateHash(fp, from);
+            int action = ml.selectAction(stateHash, 10); // 10 possible actions
 
-        // Execute action
-        Location nextLocation = executeAction(fp, action, from);
+            // Execute action
+            Location nextLocation = executeAction(fp, action, from);
 
-        // Calculate reward based on action outcome
-        double reward = calculateReward(fp, from, nextLocation, target);
+            // Calculate reward based on action outcome
+            double reward = calculateReward(fp, from, nextLocation, target);
 
-        // Create experience
-        long nextStateHash = calculateStateHash(fp, nextLocation);
-        SimExperience experience = new SimExperience(stateHash, action, reward, nextStateHash, false);
+            // Create experience
+            long nextStateHash = calculateStateHash(fp, nextLocation);
+            SimExperience experience = new SimExperience(stateHash, action, reward, nextStateHash, false);
 
-        // Add to ML system
-        ml.addPlayerExperience(fp, experience);
+            // Add to ML system
+            ml.addPlayerExperience(fp, experience);
 
-        // Record training data for monitoring
-        if (trainingMonitor != null) {
-            trainingMonitor.recordExperience(fp, experience, action, reward);
+            // Record training data for monitoring
+            if (trainingMonitor != null) {
+                trainingMonitor.recordExperience(fp, experience, action, reward);
+            }
+
+            // Update fake player location
+            fp.moveTo(nextLocation);
+        } catch (Exception e) {
+            // Log error but don't crash the training loop
+            System.err.println("Error updating fake player " + fp.getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            // Optionally despawn the problematic fake player
+            // fp.despawn();
         }
-
-        // Update fake player location
-        fp.moveTo(nextLocation);
     }
 
     private long calculateStateHash(FakePlayer fp, Location location) {

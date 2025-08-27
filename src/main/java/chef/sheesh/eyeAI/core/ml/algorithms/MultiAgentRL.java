@@ -25,6 +25,13 @@ public class MultiAgentRL implements Listener {
     }
 
     /**
+     * Coordinate one training step (alias for coordinateTick) for API compatibility.
+     */
+    public void coordinate() {
+        coordinateTick();
+    }
+
+    /**
      * Coordinates the actions and learning for all agents for a single time step.
      */
     public void coordinateTick() {

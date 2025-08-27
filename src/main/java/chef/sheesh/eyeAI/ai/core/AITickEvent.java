@@ -13,7 +13,7 @@ public class AITickEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
 
     public AITickEvent() {
-        super(true); // async allowed
+        super(false); // async not allowed
     }
 
     @Override
@@ -25,4 +25,3 @@ public class AITickEvent extends Event {
         return handlers;
     }
 }
-

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -48,7 +50,10 @@ public final class H2Provider implements DataStore {
                 parentDir.mkdirs();
             }
 
-            this.databaseUrl = "jdbc:h2:" + dbPath.getAbsolutePath() + ";AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
+            // Normalize path for H2 on Windows and add explicit file: prefix
+            Path abs = Paths.get(dbPath.getAbsolutePath()).toAbsolutePath();
+            String normalized = abs.toString().replace('\\', '/');
+            this.databaseUrl = "jdbc:h2:file:" + normalized + ";AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
 
             // Connect to database
             this.connection = DriverManager.getConnection(databaseUrl);

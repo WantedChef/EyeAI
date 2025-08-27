@@ -28,7 +28,7 @@ public class MovementEngine implements IMovementEngine {
      */
     public CompletableFuture<Path> computePathAsync(Location from, Location to) {
         // Run pathfinding on async thread
-        return CompletableFuture.supplyAsync(() -> navGraph.findPath(from, to));
+        return CompletableFuture.supplyAsync(() -> navGraph.findPath(from, to).smooth());
     }
 
     /**
@@ -98,7 +98,7 @@ public class MovementEngine implements IMovementEngine {
                                 java.util.List<Location> combinedWaypoints = new java.util.ArrayList<>();
                                 combinedWaypoints.addAll(path.getWaypoints());
                                 combinedWaypoints.addAll(remainingPath.getWaypoints());
-                                return new Path(combinedWaypoints);
+                                return new Path(combinedWaypoints).smooth();
                             });
                 });
     }
@@ -119,12 +119,22 @@ public class MovementEngine implements IMovementEngine {
             // Simple movement towards next waypoint
             Location entityLoc = entity.getLocation();
             double dx = nextWaypoint.getX() - entityLoc.getX();
+            double dy = Math.max(-0.5, Math.min(0.5, nextWaypoint.getY() - entityLoc.getY())); // clamp vertical
             double dz = nextWaypoint.getZ() - entityLoc.getZ();
 
             double distance = Math.sqrt(dx * dx + dz * dz);
             if (distance > 0.1) {
                 double speed = getMovementSpeed();
-                entity.setVelocity(new org.bukkit.util.Vector(dx / distance * speed, 0, dz / distance * speed));
+                entity.setVelocity(new org.bukkit.util.Vector(dx / distance * speed, dy * 0.1, dz / distance * speed));
+            }
+
+            // Advance waypoint when close enough
+            if (path.shouldAdvance(entityLoc, 0.6)) {
+                boolean hasMore = path.advance();
+                if (!hasMore) {
+                    // End of path reached
+                    entity.setVelocity(new org.bukkit.util.Vector(0, entity.getVelocity().getY(), 0));
+                }
             }
         }
     }
@@ -136,12 +146,7 @@ public class MovementEngine implements IMovementEngine {
      */
     @Override
     public boolean isWalkable(Location location) {
-        org.bukkit.block.Block block = location.getBlock();
-        org.bukkit.Material material = block.getType();
-
-        // Check if block is solid or liquid
-        return !material.isSolid() && !material.equals(org.bukkit.Material.WATER) &&
-               !material.equals(org.bukkit.Material.LAVA);
+        return navGraph.isWalkable(location);
     }
 
     /**

@@ -5,6 +5,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +17,7 @@ import java.util.UUID;
  * It scans the nearby terrain and entities to build a local map.
  */
 public class SpatialState implements IState, Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
 
     private final HashMap<String, String> terrainMap = new HashMap<>(); // Key: "x,y,z", Value: Block type
@@ -23,11 +25,24 @@ public class SpatialState implements IState, Serializable {
     private final transient World world;
     private final Location center;
 
+    // Simple numeric metrics for tests and lightweight usage
+    private double nearbyBlocks = 0.0;
+    private double nearbyEntities = 0.0;
+    private double heightDifference = 0.0;
+    private double distanceToCenter = 0.0;
+    private double terrainDensity = 0.0;
+
     public SpatialState(Location center, int radius, World world) {
         this.center = center;
         this.world = world;
         scanTerrain(center, radius);
         scanEntities(center, radius);
+    }
+
+    // No-arg constructor expected by tests
+    public SpatialState() {
+        this.center = new Location(null, 0, 0, 0);
+        this.world = null;
     }
 
     private void scanTerrain(Location center, int radius) {
@@ -53,6 +68,47 @@ public class SpatialState implements IState, Serializable {
         for (Entity entity : world.getNearbyEntities(center, radius, radius, radius)) {
             entityPositions.put(entity.getUniqueId(), entity.getLocation());
         }
+    }
+
+    public void setTerrainDensity(double terrainDensity) {
+        this.terrainDensity = terrainDensity;
+    }
+
+    // Getter and setter methods for numeric metrics
+    public double getNearbyBlocks() {
+        return nearbyBlocks;
+    }
+
+    public void setNearbyBlocks(double nearbyBlocks) {
+        this.nearbyBlocks = nearbyBlocks;
+    }
+
+    public double getNearbyEntities() {
+        return nearbyEntities;
+    }
+
+    public void setNearbyEntities(double nearbyEntities) {
+        this.nearbyEntities = nearbyEntities;
+    }
+
+    public double getHeightDifference() {
+        return heightDifference;
+    }
+
+    public void setHeightDifference(double heightDifference) {
+        this.heightDifference = heightDifference;
+    }
+
+    public double getDistanceToCenter() {
+        return distanceToCenter;
+    }
+
+    public void setDistanceToCenter(double distanceToCenter) {
+        this.distanceToCenter = distanceToCenter;
+    }
+
+    public double getTerrainDensity() {
+        return terrainDensity;
     }
 
     @Override

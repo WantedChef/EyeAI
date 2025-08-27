@@ -53,7 +53,8 @@ public class SchedulerService {
             return; // Already running
         }
 
-        tickTaskId = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        // Run on main thread to avoid async event warnings
+        tickTaskId = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             // Fire AI tick event for all listeners
             plugin.getServer().getPluginManager().callEvent(new AITickEvent());
         }, 1L, 1L).getTaskId(); // Start immediately, repeat every tick

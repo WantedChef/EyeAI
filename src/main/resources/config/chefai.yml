@@ -15,7 +15,7 @@ redis:
   password: ""
   database: 0
   timeout: 2000
-  maxConnections: 20
+  maxConnections: 30
   minIdle: 5
   maxIdle: 10
 
@@ -31,16 +31,189 @@ cache:
 
 training:
   enabled: true
-  autoStart: false  # Of training automatisch moet starten bij plugin enable
-  fakePlayers: 50
-  batchSize: 128
+  autoStart: true  # Of training automatisch moet starten bij plugin enable
+  fakePlayers: 150  # Geoptimaliseerd voor i5-1135G7 + 17GB RAM (was 50)
+  batchSize: 64   # Kleinere batches voor sneller processing op i5 (was 256)
   epsilon:
-    start: 0.4
-    min: 0.02
+    start: 0.8    # Maximale exploration voor sneller data generatie (was 0.5)
+    min: 0.02      # Sneller naar exploitation (was 0.01)
     adaptive: true
-    decay: 0.995
+    decay: 0.9998   # Snellere decay voor sneller leren (was 0.998)
   safety:
-    minTPS: 18.0
+    minTPS: 19.0  # Optimale TPS voor i5 (was 15.0)
 
-ui:
-  enableDashboard: true
+# Uitgebreide AI Training Configuratie - ALLE mogelijke opties
+ai_training:
+  # Algemeen
+  enabled: true
+  auto_start: true
+  training_mode: "reinforcement_learning"  # reinforcement_learning | supervised | unsupervised
+
+  # Algoritmes - Kies welke je wilt gebruiken
+  algorithms:
+    q_learning:
+      enabled: true
+      q_table_size: 10000
+      q_table_persistence: true
+    deep_q_network:
+      enabled: true
+      hidden_layers: [128, 64, 32]
+      activation: "relu"
+      use_target_network: true
+      target_update_frequency: 1000
+    policy_gradient:
+      enabled: true
+      policy_network_layers: [256, 128, 64]
+      value_network_layers: [128, 64, 32]
+      use_gae: true  # Generalized Advantage Estimation
+      gae_lambda: 0.95
+    multi_agent:
+      enabled: true
+      shared_policy: true
+      communication_enabled: true
+      message_passing_frequency: 10
+
+  # Experience Collection
+  experience_collection:
+    collect_from_fake_players: true
+    collect_from_real_players: true
+    experience_buffer_size: 100000
+    experience_priority_sampling: true
+    experience_persistence: true
+    min_experience_quality: 0.1  # Minimum reward threshold
+
+  # Rewardsysteem - Gedetailleerde configuratie
+  rewards:
+    base_reward_per_action: 0.01
+    combat_rewards:
+      damage_dealt_multiplier: 1.0
+      kill_reward: 10.0
+      death_penalty: -5.0
+      assist_reward: 2.0
+    exploration_rewards:
+      new_area_discovery: 1.0
+      resource_collection: 0.5
+      building_completion: 5.0
+    survival_rewards:
+      health_restored: 0.1
+      hunger_satisfied: 0.2
+      shelter_built: 3.0
+    social_rewards:
+      player_interaction: 0.5
+      trade_completed: 1.0
+      team_cooperation: 2.0
+    penalties:
+      idle_penalty: -0.001
+      self_damage_penalty: -0.5
+      griefing_penalty: -10.0
+
+  # State Representation - Wat de AI ziet
+  state_representation:
+    include_player_health: true
+    include_player_hunger: true
+    include_inventory_state: true
+    include_nearby_entities: true
+    include_environment_blocks: true
+    include_time_of_day: true
+    include_weather: true
+    observation_radius: 16  # Blocks rondom de speler
+    use_relative_coordinates: true
+    normalize_states: true
+
+  # Actions - Wat de AI kan doen
+  available_actions:
+    movement:
+      walk: true
+      sprint: true
+      jump: true
+      sneak: true
+    combat:
+      attack: true
+      block: true
+      use_bow: true
+      use_potions: true
+    interaction:
+      break_blocks: true
+      place_blocks: true
+      use_items: true
+      open_containers: true
+      trade_with_villagers: true
+    crafting:
+      basic_crafting: true
+      advanced_crafting: true
+      enchanting: true
+      brewing: true
+
+  # Training Parameters - Uitgebreid
+  training_parameters:
+    batch_size: 64
+    learning_rate: 0.0005
+    discount_factor: 0.99
+    exploration_rate_start: 0.8
+    exploration_rate_min: 0.02
+    exploration_rate_decay: 0.9998
+    max_training_steps: 1000000
+    save_frequency: 10000
+    evaluation_frequency: 5000
+    early_stopping_patience: 20
+
+  # Performance Optimalisatie
+  performance:
+    max_parallel_episodes: 75
+    experience_generation_fps: 30
+    frame_skip: 1
+    use_multiprocessing: true
+    num_worker_processes: 4
+    gpu_acceleration: false  # CPU only voor i5
+
+  # Monitoring & Logging
+  monitoring:
+    enable_tensorboard: false  # Vereist extra setup
+    log_training_metrics: true
+    log_experience_generation: true
+    log_agent_behavior: true
+    metrics_update_frequency: 100
+    save_training_videos: false
+
+  # Model Persistence
+  model_persistence:
+    auto_save: true
+    save_best_only: true
+    save_frequency_minutes: 10
+    max_saved_models: 5
+    model_format: "safetensors"
+    include_optimizer_state: true
+
+  # Curriculum Learning - Progressieve moeilijkheid
+  curriculum_learning:
+    enabled: true
+    start_difficulty: 0.1
+    max_difficulty: 1.0
+    difficulty_increase_rate: 0.001
+    difficulty_metrics:
+      - average_reward
+      - success_rate
+      - exploration_coverage
+
+  # Imitation Learning - Leer van menselijke spelers
+  imitation_learning:
+    enabled: false
+    record_human_demonstrations: true
+    demonstration_buffer_size: 50000
+    imitation_weight: 0.3  # Hoeveel invloed menselijke demos hebben
+
+# Low Resource Mode - Voor GTX 1060 6GB + 8GB RAM setup
+low_resource_mode:
+  enabled: false  # Zet dit op true voor automatische optimalisaties
+  
+  # Server RAM optimalisaties (Purpur 1.20.6)
+  server:
+    heap_size_gb: 4  # Max heap voor server (laat 4GB voor OS/ML)
+    view_distance: 4
+    simulation_distance: 4
+    max_entities_per_chunk: 25
+    max_tile_entities_per_chunk: 100
+    entity_activation_range: 16
+    tick_distance: 2
+    disable_timings: true
+    
