@@ -9,11 +9,11 @@ allprojects {
     configurations.all {
         resolutionStrategy {
             dependencySubstitution {
-                substitute module('org.ow2.asm:asm') using module('org.ow2.asm:asm:9.6')
-                substitute module('org.ow2.asm:asm-commons') using module('org.ow2.asm:asm-commons:9.6')
-                substitute module('org.ow2.asm:asm-tree') using module('org.ow2.asm:asm-tree:9.6')
-                substitute module('org.ow2.asm:asm-analysis') using module('org.ow2.asm:asm-analysis:9.6')
-                substitute module('org.ow2.asm:asm-util') using module('org.ow2.asm:asm-util:9.6')
+                substitute module('org.ow2.asm:asm') using module('org.ow2.asm:asm:9.8')
+                substitute module('org.ow2.asm:asm-commons') using module('org.ow2.asm:asm-commons:9.8')
+                substitute module('org.ow2.asm:asm-tree') using module('org.ow2.asm:asm-tree:9.8')
+                substitute module('org.ow2.asm:asm-analysis') using module('org.ow2.asm:asm-analysis:9.8')
+                substitute module('org.ow2.asm:asm-util') using module('org.ow2.asm:asm-util:9.8')
             }
         }
     }
