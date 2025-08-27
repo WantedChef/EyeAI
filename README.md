@@ -1,76 +1,44 @@
-# Chef-AI
+1. Ambition
+-----------
+Build a fully autonomous Minecraft Paper 1.20.6 world where *every* element—terrain, 
+biomes, structures, rules, quests, and emergent events—is generated, curated and 
+evolved by AI.  Players drop into an ever-changing living simulation guided by a 
+collective of reinforcement-learned agents (“FakePlayers”) that craft stories, wage 
+wars, broker alliances, fall in love, betray, and reshape the landscape without any
+manual scripting.
 
-A production-grade AI plugin for Paper 1.20+ servers.
+2. Mem0-Powered Systems
+-----------------------
+• Dynamic Questlines – Mem0 memory graphs track each player’s past choices; NPC Directors spin personalised, branching missions.
+• Emotion-Driven NPC Dialogue – Sentiment analysis combined with Mem0 recall for long-term context yields nuanced conversations.
+• Cross-World Travel Diary – Agents maintain Mem0 timelines of visited biomes & monuments, unlocking achievements and travel quests.
+• Lore Archivist – An autonomous historian NPC records world events and curates holographic exhibitions; all indexed in Mem0 and viewable via the Playground site.
+• Social Circle Detection – Graph algorithms over Mem0 data infer friend groups, rival factions and lone wolves for targeted quests.
+• Trust & Reputation System – Every trade, heal or ambush updates Mem0 scores influencing prices, guard hostility and guild invites.
 
-## Features
+3. Additional AI Systems
+------------------------
+• World-Scale Event Engine – AI dungeon-master triggers continent-wide calamities: plagues, eclipses, invasions, custom boss raids with ML-driven tactics.
+• Fully AI-Trained Agents – FakePlayers learn via Multi-Agent RL & Policy Gradient curricula; no human-authored behaviour trees in production.
+• Next-Gen Anti-Cheat – Behavioural anomaly detection models flag impossible moves, dupes or chatbots using the unprecedented dataset.
 
-- **Machine Learning Core**: Deep learning models for player behavior prediction
-- **Simulation Engine**: Fake player system for training AI models
-- **Anti-Cheat Integration**: Detect anomalies in player behavior
-- **Chat NLP**: Natural language processing for chat moderation
-- **NPC Villages**: AI-powered village generation and management
-- **Admin Dashboard**: In-game GUI for monitoring and configuration
+4. Technical Pillars
+--------------------
+• `MLManager` orchestrates on-server inference, hot-swapping model snapshots.
+• `FakePlayer` implements Bukkit’s `Player` interface, letting agents interact as 
+  first-class citizens.
+• Mem0Service will  provides low-latency REST & bulk-batch pipes to cloud memory.
+• LRU caches keep P95 memory lookups <2ms during peak 500 ops/s.
+• Behavior-mod kernels compiled with Project Panama & Graal for JNI-free speed.
 
-## Installation
+5. Data Lifecycle
+-----------------
+1. Simulation telemetry → Mem0 (Playground can visualise timelines)
+2. Offline training jobs consume Mem0 dumps to improve policies
+3. Continuous evaluation cluster benchmarks new models before live rollout
+4. can make it like a game that you play as 1 npc character like life simulator game
 
-1. Build the plugin using Gradle:
-   ```
-   ./gradlew shadowJar
-   ```
-   
-   Or use the provided build script:
-   ```
-   ./build-plugin.bat
-   ```
-
-2. Copy the generated `ChefAI.jar` to your server's `plugins` folder
-
-3. Start/restart your server
-
-## Dependencies
-
-- Paper 1.20+
-- ProtocolLib
-- packetevents
-
-## Configuration
-
-The plugin can be configured through `config/chefai.yml`:
-
-```yaml
-storage:
-  provider: H2 # H2 | POSTGRES
-  h2:
-    file: plugins/ChefAI/data/chefai
-  postgres:
-    host: 127.0.0.1
-    port: 5432
-    database: chefai
-    user: postgres
-    password: secret
-
-training:
-  enabled: true
-  fakePlayers: 50
-  batchSize: 128
-  epsilon:
-    start: 0.4
-    min: 0.02
-    adaptive: true
-    decay: 0.995
-  safety:
-    minTPS: 18.0
-
-ui:
-  enableDashboard: true
-```
-
-## Commands
-
-- `/chefai` - Opens the admin control center
-
-For detailed information about command registration and implementation, see [COMMANDS_DOCUMENTATION.md](COMMANDS_DOCUMENTATION.md)
-
-## Permissions
-
-- `chefai.admin` - Access to admin features
+6. End-Game Vision
+------------------
+An endless, self-writing RPG where AI authors the narrative; players become actors
+within a living, breathing experiment of emergence, ethics, chaos and wonder.
