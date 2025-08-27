@@ -146,19 +146,6 @@ We welcome contributions from the community! Please read our [Contributing Guide
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
 
-- **Documentation**: [docs.eyeai.com](https://docs.eyeai.com)
-- **Issues**: [GitHub Issues](https://github.com/WantedChef/EyeAI/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/WantedChef/EyeAI/discussions)
-- **Email**: support@eyeai.com
-
-## 🙏 Acknowledgments
-
-- OpenAI for foundational AI research
-- The open-source computer vision community
-- Our beta testers and contributors
-
----
 
 *Built with ❤️ by the EyeAI Team*
